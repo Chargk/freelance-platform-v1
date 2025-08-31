@@ -19,6 +19,7 @@ interface AuthContextType {
   register: (email: string, password: string, name: string, role: 'client' | 'freelancer') => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isLoading: boolean
+  updateUser: (updatedUser: Partial<User>) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -121,8 +122,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     removeLocalStorage('user')
   }
 
+
+  const updateUser = (updatedUser: Partial<User>) => {
+    if (user) {
+      const newUser = { ...user, ...updatedUser }
+      setUser(newUser)
+      setLocalStorage('user', newUser)
+      
+
+      const users: UserWithPassword[] = getLocalStorage('users') || []
+      const userIndex = users.findIndex(u => u.id === user.id)
+      if (userIndex !== -1) {
+        users[userIndex] = { ...users[userIndex], ...updatedUser }
+        setLocalStorage('users', users)
+      }
+    }
+  }
+
+  const value = {
+    user,
+    login,
+    register,
+    logout,
+    isLoading,
+    updateUser
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
