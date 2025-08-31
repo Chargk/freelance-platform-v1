@@ -10,12 +10,19 @@ import {
   MapPin, 
   Users,
   X,
-  SlidersHorizontal
+  SlidersHorizontal,
+  CheckCircle
 } from 'lucide-react'
 import { mockProjects, categories, skills } from '../data/mockProjects'
 import type { Project, ProjectFilters } from '../types/project'
+import Modal from '../components/ui/Modal'
+import CreateProjectForm from '../components/projects/CreateProjectForm'
+import ApplyForm from '../components/projects/ApplyForm'
+import { useAuth } from '../contexts/AuthContext'
+import { getLocalStorage, setLocalStorage } from '../utils/storage'
 
 const Projects = () => {
+  const { user } = useAuth()
   const [filters, setFilters] = useState<ProjectFilters>({
     search: '',
     category: '',
@@ -28,10 +35,23 @@ const Projects = () => {
   })
   const [showFilters, setShowFilters] = useState(false)
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
+  
+  // Modal states
+  const [showCreateProject, setShowCreateProject] = useState(false)
+  const [showApplyForm, setShowApplyForm] = useState(false)
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
+  const [isSubmittingApplication, setIsSubmittingApplication] = useState(false)
+
+  // Get projects from localStorage or use mock data
+  const allProjects = useMemo(() => {
+    const savedProjects = getLocalStorage('projects')
+    return savedProjects || mockProjects
+  }, [])
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
-    let filtered = [...mockProjects]
+    let filtered = [...allProjects]
 
     // Search filter
     if (filters.search) {
@@ -97,7 +117,7 @@ const Projects = () => {
     })
 
     return filtered
-  }, [filters])
+  }, [filters, allProjects])
 
   const handleSkillToggle = (skill: string) => {
     setSelectedSkills(prev => 
@@ -137,6 +157,91 @@ const Projects = () => {
     return date.toLocaleDateString()
   }
 
+  const handleCreateProject = async (data: any) => {
+    setIsCreatingProject(true)
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const newProject: Project = {
+        id: Date.now().toString(),
+        title: data.title,
+        description: data.description,
+        budget: data.budget,
+        skills: data.skills,
+        category: data.category,
+        postedBy: {
+          id: user?.id || 'unknown',
+          name: user?.name || 'Unknown',
+          rating: 5.0
+        },
+        postedDate: new Date().toISOString(),
+        proposals: 0,
+        status: 'open',
+        location: data.location,
+        duration: data.duration,
+        experience: data.experience
+      }
+
+      // Save to localStorage
+      const updatedProjects = [newProject, ...allProjects]
+      setLocalStorage('projects', updatedProjects)
+      
+      setShowCreateProject(false)
+      // You could add a success notification here
+    } catch (error) {
+      console.error('Error creating project:', error)
+    } finally {
+      setIsCreatingProject(false)
+    }
+  }
+
+  const handleApplyToProject = async (data: any) => {
+    if (!selectedProject) return
+    
+    setIsSubmittingApplication(true)
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Save application to localStorage
+      const applications = getLocalStorage('applications') || []
+      const newApplication = {
+        id: Date.now().toString(),
+        projectId: selectedProject.id,
+        projectTitle: selectedProject.title,
+        freelancerId: user?.id,
+        freelancerName: user?.name,
+        coverLetter: data.coverLetter,
+        proposedBudget: data.proposedBudget,
+        estimatedDuration: data.estimatedDuration,
+        submittedAt: new Date().toISOString(),
+        status: 'pending'
+      }
+      
+      applications.push(newApplication)
+      setLocalStorage('applications', applications)
+      
+      setShowApplyForm(false)
+      setSelectedProject(null)
+      // You could add a success notification here
+    } catch (error) {
+      console.error('Error submitting application:', error)
+    } finally {
+      setIsSubmittingApplication(false)
+    }
+  }
+
+  const handleApplyClick = (project: Project) => {
+    if (!user) {
+      // Redirect to login or show login modal
+      alert('Please log in to apply for projects')
+      return
+    }
+    setSelectedProject(project)
+    setShowApplyForm(true)
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
@@ -173,7 +278,10 @@ const Projects = () => {
                 </span>
               )}
             </button>
-            <button className="btn-primary flex items-center gap-2">
+            <button 
+              onClick={() => setShowCreateProject(true)}
+              className="btn-primary flex items-center gap-2"
+            >
               <Plus className="w-4 h-4" />
               Post Project
             </button>
@@ -323,7 +431,7 @@ const Projects = () => {
               </div>
               
               <div className="flex flex-wrap gap-2 mb-4">
-                {project.skills.slice(0, 5).map((skill) => (
+                {project.skills.slice(0, 5).map((skill: string) => (
                   <span
                     key={skill}
                     className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full font-medium"
@@ -357,7 +465,10 @@ const Projects = () => {
                     <span>{project.proposals} proposals</span>
                   </div>
                 </div>
-                <button className="btn-primary">
+                <button 
+                  onClick={() => handleApplyClick(project)}
+                  className="btn-primary"
+                >
                   Apply Now
                 </button>
               </div>
@@ -365,6 +476,43 @@ const Projects = () => {
           ))
         )}
       </div>
+
+      {/* Create Project Modal */}
+      <Modal
+        isOpen={showCreateProject}
+        onClose={() => setShowCreateProject(false)}
+        title="Create New Project"
+        size="lg"
+      >
+        <CreateProjectForm
+          onSubmit={handleCreateProject}
+          onCancel={() => setShowCreateProject(false)}
+          isLoading={isCreatingProject}
+        />
+      </Modal>
+
+      {/* Apply to Project Modal */}
+      <Modal
+        isOpen={showApplyForm}
+        onClose={() => {
+          setShowApplyForm(false)
+          setSelectedProject(null)
+        }}
+        title="Apply to Project"
+        size="md"
+      >
+        {selectedProject && (
+          <ApplyForm
+            project={selectedProject}
+            onSubmit={handleApplyToProject}
+            onCancel={() => {
+              setShowApplyForm(false)
+              setSelectedProject(null)
+            }}
+            isLoading={isSubmittingApplication}
+          />
+        )}
+      </Modal>
     </div>
   )
 }
