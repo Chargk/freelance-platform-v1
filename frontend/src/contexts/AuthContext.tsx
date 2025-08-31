@@ -1,15 +1,27 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import { getLocalStorage, setLocalStorage } from '../utils/storage'
+import { api } from '../services/api'
 
 interface User {
-  id: string
+  _id: string
+  id?: string // Add id as optional for backward compatibility
   name: string
   email: string
   role: 'client' | 'freelancer'
-}
-
-interface UserWithPassword extends User {
-  password: string
+  avatar?: string
+  phone?: string
+  location?: string
+  bio?: string
+  skills: string[]
+  experience: string
+  education?: string
+  portfolio?: string
+  hourlyRate?: number
+  availability: string
+  languages: string[]
+  rating: number
+  totalProjects: number
+  completedProjects: number
+  joinDate: string
 }
 
 interface AuthContextType {
@@ -19,7 +31,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string, role: 'client' | 'freelancer') => Promise<{ success: boolean; error?: string }>
   logout: () => void
   updateUser: (updatedUser: Partial<User>) => void
-  clearAllData: () => void // Add function to clear all data
+  getUserId: () => string | undefined
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -42,116 +54,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in on app start
-    const savedUser = getLocalStorage('user')
-    if (savedUser) {
-      setUser(savedUser)
+    const token = localStorage.getItem('token')
+    const savedUser = localStorage.getItem('user')
+    
+    if (token && savedUser) {
+      try {
+        setUser(JSON.parse(savedUser))
+      } catch (error) {
+        console.error('Error parsing saved user:', error)
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+      }
     }
+    
     setIsLoading(false)
   }, [])
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Get users from localStorage
-      const users: UserWithPassword[] = getLocalStorage('users') || []
+      const response = await api.login({ email, password }) as { user: User; token: string }
       
-      // Find user by email and password (case-insensitive)
-      const foundUser = users.find(u => 
-        u.email.toLowerCase() === email.toLowerCase() && u.password === password
-      )
-      
-      if (!foundUser) {
-        return { success: false, error: 'Invalid email or password' }
-      }
-
-      // Remove password from user object before storing
-      const { password: _, ...userWithoutPassword } = foundUser
-      setUser(userWithoutPassword)
-      setLocalStorage('user', userWithoutPassword)
+      setUser(response.user)
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
       
       return { success: true }
-    } catch (error) {
-      return { success: false, error: 'Login failed' }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Login failed' }
     }
   }
 
   const register = async (name: string, email: string, password: string, role: 'client' | 'freelancer'): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Get existing users
-      const users: UserWithPassword[] = getLocalStorage('users') || []
+      const response = await api.register({ name, email, password, role }) as { user: User; token: string }
       
-      // Check if user already exists (case-insensitive email check)
-      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase())
-      if (existingUser) {
-        console.log('Existing users:', users.map(u => ({ email: u.email, name: u.name })))
-        console.log('Trying to register with email:', email)
-        return { success: false, error: 'User with this email already exists' }
-      }
-
-      // Create new user
-      const newUser: UserWithPassword = {
-        id: Date.now().toString(),
-        name,
-        email: email.toLowerCase(), // Store email in lowercase
-        password,
-        role
-      }
-
-      // Add to users array
-      users.push(newUser)
-      setLocalStorage('users', users)
-
-      // Remove password and set as current user
-      const { password: _, ...userWithoutPassword } = newUser
-      setUser(userWithoutPassword)
-      setLocalStorage('user', userWithoutPassword)
+      setUser(response.user)
+      localStorage.setItem('token', response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
       
       return { success: true }
-    } catch (error) {
-      console.error('Registration error:', error)
-      return { success: false, error: 'Registration failed' }
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Registration failed' }
     }
   }
 
   const logout = () => {
     setUser(null)
-    setLocalStorage('user', null)
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
   const updateUser = (updatedUser: Partial<User>) => {
     if (user) {
       const newUser = { ...user, ...updatedUser }
       setUser(newUser)
-      setLocalStorage('user', newUser)
-      
-      // Also update user in users array
-      const users: UserWithPassword[] = getLocalStorage('users') || []
-      const userIndex = users.findIndex(u => u.id === user.id)
-      if (userIndex !== -1) {
-        users[userIndex] = { ...users[userIndex], ...updatedUser }
-        setLocalStorage('users', users)
-      }
+      localStorage.setItem('user', JSON.stringify(newUser))
     }
   }
 
-  // Function to clear all data (useful for development/testing)
-  const clearAllData = () => {
-    setUser(null)
-    setLocalStorage('user', null)
-    setLocalStorage('users', null)
-    setLocalStorage('profile', null)
-    setLocalStorage('projects', null)
-    setLocalStorage('invites', null)
-    setLocalStorage('messages', null)
-    setLocalStorage('chatUsers', null)
-    setLocalStorage('applications', null)
-    
-    // Clear all profile data for all users
-    const keys = Object.keys(localStorage)
-    keys.forEach(key => {
-      if (key.startsWith('profile_')) {
-        localStorage.removeItem(key)
-      }
-    })
+  const getUserId = () => {
+    return user?._id || user?.id || ''
   }
 
   const value = {
@@ -161,7 +123,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     updateUser,
-    clearAllData
+    getUserId
   }
 
   return (

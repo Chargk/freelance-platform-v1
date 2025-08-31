@@ -10,8 +10,7 @@ import {
   Eye, 
   Star,
   User,
-  Calendar,
-  Briefcase
+  Calendar
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getLocalStorage, setLocalStorage } from '../utils/storage'
@@ -40,7 +39,7 @@ interface Invite {
 }
 
 const Invites = () => {
-  const { user } = useAuth()
+  const { user, getUserId } = useAuth()
   const [invites, setInvites] = useState<Invite[]>([])
   const [filteredInvites, setFilteredInvites] = useState<Invite[]>([])
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'declined'>('all')
@@ -72,7 +71,7 @@ const Invites = () => {
           clientId: 'client1',
           clientName: 'John Smith',
           clientRating: 4.8,
-          freelancerId: user?.id || 'unknown',
+          freelancerId: getUserId() || 'unknown',
           freelancerName: user?.name || 'Unknown',
           message: 'Hi! I saw your profile and I think you would be perfect for this project. Your React and Node.js skills are exactly what we need.',
           budget: { min: 2000, max: 5000 },
@@ -91,7 +90,7 @@ const Invites = () => {
           clientId: 'client2',
           clientName: 'Sarah Johnson',
           clientRating: 4.9,
-          freelancerId: user?.id || 'unknown',
+          freelancerId: getUserId() || 'unknown',
           freelancerName: user?.name || 'Unknown',
           message: 'Your portfolio impressed me! I need someone with experience in React Native and Firebase.',
           budget: { min: 3000, max: 8000 },
@@ -110,7 +109,7 @@ const Invites = () => {
           clientId: 'client3',
           clientName: 'Mike Wilson',
           clientRating: 4.5,
-          freelancerId: user?.id || 'unknown',
+          freelancerId: getUserId() || 'unknown',
           freelancerName: user?.name || 'Unknown',
           message: 'Your AI/ML skills caught my attention. This project requires expertise in Python and NLP.',
           budget: { min: 5000, max: 12000 },
@@ -129,7 +128,7 @@ const Invites = () => {
           clientId: 'client4',
           clientName: 'Emily Davis',
           clientRating: 4.7,
-          freelancerId: user?.id || 'unknown',
+          freelancerId: getUserId() || 'unknown',
           freelancerName: user?.name || 'Unknown',
           message: 'Looking for a developer with experience in social media APIs and data visualization.',
           budget: { min: 1500, max: 4000 },
@@ -148,7 +147,7 @@ const Invites = () => {
           clientId: 'client5',
           clientName: 'Alex Chen',
           clientRating: 4.6,
-          freelancerId: user?.id || 'unknown',
+          freelancerId: getUserId() || 'unknown',
           freelancerName: user?.name || 'Unknown',
           message: 'Need a blockchain developer with Solidity experience for our DeFi project.',
           budget: { min: 8000, max: 20000 },
@@ -202,7 +201,7 @@ const Invites = () => {
             id: Date.now().toString(),
             projectId: invite.projectId,
             projectTitle: invite.projectTitle,
-            freelancerId: user?.id,
+            freelancerId: getUserId(),
             freelancerName: user?.name,
             coverLetter: `I'm excited to work on this project! I accept the invitation and look forward to collaborating.`,
             proposedBudget: invite.budget.max,

@@ -9,8 +9,6 @@ import {
   Image, 
   Paperclip,
   Smile,
-  Circle,
-  Clock,
   Check,
   CheckCheck
 } from 'lucide-react'
@@ -47,7 +45,7 @@ interface Chat {
 }
 
 const Chat = () => {
-  const { user } = useAuth()
+  const { user, getUserId } = useAuth()
   const [chats, setChats] = useState<Chat[]>([])
   const [users, setUsers] = useState<ChatUser[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -117,7 +115,7 @@ const Chat = () => {
         {
           id: '1',
           senderId: 'user1',
-          receiverId: user?.id || 'unknown',
+          receiverId: getUserId() || 'unknown',
           content: 'Hi! I really liked your proposal for the e-commerce project.',
           timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           isRead: true,
@@ -125,7 +123,7 @@ const Chat = () => {
         },
         {
           id: '2',
-          senderId: user?.id || 'unknown',
+          senderId: getUserId() || 'unknown',
           receiverId: 'user1',
           content: 'Thank you! I\'m excited to work on this project. When would you like to start?',
           timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
@@ -135,7 +133,7 @@ const Chat = () => {
         {
           id: '3',
           senderId: 'user1',
-          receiverId: user?.id || 'unknown',
+          receiverId: getUserId() || 'unknown',
           content: 'Perfect! Let\'s start next week. I\'ll send you the project requirements.',
           timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
           isRead: false,
@@ -144,7 +142,7 @@ const Chat = () => {
         {
           id: '4',
           senderId: 'user2',
-          receiverId: user?.id || 'unknown',
+          receiverId: getUserId() || 'unknown',
           content: 'Hello! Are you available for a new project?',
           timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
           isRead: true,
@@ -152,7 +150,7 @@ const Chat = () => {
         },
         {
           id: '5',
-          senderId: user?.id || 'unknown',
+          senderId: getUserId() || 'unknown',
           receiverId: 'user2',
           content: 'Hi Sarah! Yes, I\'m available. What kind of project do you have in mind?',
           timestamp: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(),
@@ -164,7 +162,7 @@ const Chat = () => {
       const mockChats: Chat[] = [
         {
           id: 'chat1',
-          participants: [user?.id || 'unknown', 'user1'],
+          participants: [getUserId() || 'unknown', 'user1'],
           lastMessage: mockMessages[2],
           unreadCount: 1,
           projectId: '1',
@@ -172,7 +170,7 @@ const Chat = () => {
         },
         {
           id: 'chat2',
-          participants: [user?.id || 'unknown', 'user2'],
+          participants: [getUserId() || 'unknown', 'user2'],
           lastMessage: mockMessages[4],
           unreadCount: 0,
           projectId: '2',
@@ -180,11 +178,11 @@ const Chat = () => {
         },
         {
           id: 'chat3',
-          participants: [user?.id || 'unknown', 'user3'],
+          participants: [getUserId() || 'unknown', 'user3'],
           lastMessage: {
             id: '6',
             senderId: 'user3',
-            receiverId: user?.id || 'unknown',
+            receiverId: getUserId() || 'unknown',
             content: 'Thanks for the great work on the previous project!',
             timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
             isRead: true,
@@ -219,7 +217,7 @@ const Chat = () => {
 
       const message: Message = {
         id: Date.now().toString(),
-        senderId: user.id,
+        senderId: getUserId() || '',
         receiverId: selectedUser?.id || '',
         content: newMessage.trim(),
         timestamp: new Date().toISOString(),
@@ -257,13 +255,13 @@ const Chat = () => {
 
   const selectChat = (chat: Chat) => {
     setSelectedChat(chat)
-    const otherUserId = chat.participants.find(id => id !== user?.id)
+    const otherUserId = chat.participants.find(id => id !== getUserId())
     const otherUser = users.find(u => u.id === otherUserId)
     setSelectedUser(otherUser || null)
 
     // Mark messages as read
     const updatedMessages = messages.map(msg => 
-      msg.senderId === otherUserId && msg.receiverId === user?.id
+      msg.senderId === otherUserId && msg.receiverId === getUserId()
         ? { ...msg, isRead: true }
         : msg
     )
@@ -278,7 +276,7 @@ const Chat = () => {
     setLocalStorage('chats', updatedChats)
   }
 
-  const getChatMessages = (chatId: string) => {
+  const getChatMessages = () => {
     if (!selectedChat) return []
     return messages.filter(msg => 
       (msg.senderId === selectedChat.participants[0] && msg.receiverId === selectedChat.participants[1]) ||
@@ -301,14 +299,14 @@ const Chat = () => {
   }
 
   const filteredChats = chats.filter(chat => {
-    const otherUserId = chat.participants.find(id => id !== user?.id)
+    const otherUserId = chat.participants.find(id => id !== getUserId())
     const otherUser = users.find(u => u.id === otherUserId)
     return otherUser?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
            chat.projectTitle?.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
   const getOtherUser = (chat: Chat) => {
-    const otherUserId = chat.participants.find(id => id !== user?.id)
+    const otherUserId = chat.participants.find(id => id !== getUserId())
     return users.find(u => u.id === otherUserId)
   }
 
@@ -397,7 +395,7 @@ const Chat = () => {
                         
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center gap-1">
-                            {chat.lastMessage.senderId === user?.id ? (
+                            {chat.lastMessage.senderId === getUserId() ? (
                               chat.lastMessage.isRead ? (
                                 <CheckCheck className="w-4 h-4 text-blue-500" />
                               ) : (
@@ -479,24 +477,24 @@ const Chat = () => {
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4">
                 <div className="space-y-4">
-                  {getChatMessages(selectedChat.id).map((message) => (
+                  {getChatMessages().map((message) => (
                     <motion.div
                       key={message.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${message.senderId === user?.id ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${message.senderId === getUserId() ? 'justify-end' : 'justify-start'}`}
                     >
                       <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.senderId === user?.id
+                        message.senderId === getUserId()
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-900'
                       }`}>
                         <p className="text-sm">{message.content}</p>
                         <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
-                          message.senderId === user?.id ? 'text-blue-100' : 'text-gray-500'
+                          message.senderId === getUserId() ? 'text-blue-100' : 'text-gray-500'
                         }`}>
                           <span>{formatTime(message.timestamp)}</span>
-                          {message.senderId === user?.id && (
+                          {message.senderId === getUserId() && (
                             message.isRead ? (
                               <CheckCheck className="w-3 h-3" />
                             ) : (

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
 import type { Project } from '../../types/project'
 
 interface ApplyFormProps {
@@ -10,7 +9,6 @@ interface ApplyFormProps {
 }
 
 const ApplyForm: React.FC<ApplyFormProps> = ({ project, onSubmit, onCancel, isLoading = false }) => {
-  const { user } = useAuth()
   const [formData, setFormData] = useState({
     coverLetter: '',
     proposedBudget: project.budget.min,

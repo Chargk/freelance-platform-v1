@@ -1,21 +1,16 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { 
-  User, 
   Mail, 
   Phone, 
   MapPin, 
-  Calendar, 
   Edit3, 
   Save, 
   X, 
   Star, 
   Briefcase, 
-  Award,
   Globe,
   Linkedin,
   Github,
-  Twitter,
   Camera,
   Plus,
   Trash2
@@ -59,7 +54,7 @@ interface ProfileData {
 }
 
 const Profile = () => {
-  const { user, updateUser } = useAuth() 
+  const { user, updateUser, getUserId } = useAuth() 
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -88,14 +83,14 @@ const Profile = () => {
     if (!user) return
 
     // Load from localStorage with user-specific key
-    const profileKey = `profile_${user.id}`
+    const profileKey = `profile_${getUserId()}`
     const savedProfile = getLocalStorage(profileKey)
     
     if (savedProfile) {
       // Ensure the profile data matches current user
       const updatedProfile = {
         ...savedProfile,
-        id: user.id,
+        id: getUserId() || '',
         name: user.name,
         email: user.email,
         role: user.role
@@ -106,7 +101,7 @@ const Profile = () => {
     } else {
       // Create default profile based on user data
       const defaultProfile: ProfileData = {
-        id: user.id,
+        id: getUserId() || '',
         name: user.name,
         email: user.email,
         phone: '',
@@ -196,7 +191,7 @@ const Profile = () => {
       setProfileData(updatedProfile)
       
       // Save with user-specific key
-      const profileKey = `profile_${user.id}`
+      const profileKey = `profile_${getUserId()}`
       setLocalStorage(profileKey, updatedProfile)
       
       // Update user context

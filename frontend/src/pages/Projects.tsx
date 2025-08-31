@@ -2,16 +2,13 @@ import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Search, 
-  Filter, 
   Plus, 
   Star, 
   Clock, 
   DollarSign, 
   MapPin, 
   Users,
-  X,
-  SlidersHorizontal,
-  CheckCircle
+  SlidersHorizontal
 } from 'lucide-react'
 import { mockProjects, categories, skills } from '../data/mockProjects'
 import type { Project, ProjectFilters } from '../types/project'
@@ -22,7 +19,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { getLocalStorage, setLocalStorage } from '../utils/storage'
 
 const Projects = () => {
-  const { user } = useAuth()
+  const { user, getUserId } = useAuth()
   const [filters, setFilters] = useState<ProjectFilters>({
     search: '',
     category: '',
@@ -171,7 +168,7 @@ const Projects = () => {
         skills: data.skills,
         category: data.category,
         postedBy: {
-          id: user?.id || 'unknown',
+          id: getUserId() || 'unknown',
           name: user?.name || 'Unknown',
           rating: 5.0
         },
@@ -210,7 +207,7 @@ const Projects = () => {
         id: Date.now().toString(),
         projectId: selectedProject.id,
         projectTitle: selectedProject.title,
-        freelancerId: user?.id,
+        freelancerId: getUserId(),
         freelancerName: user?.name,
         coverLetter: data.coverLetter,
         proposedBudget: data.proposedBudget,
