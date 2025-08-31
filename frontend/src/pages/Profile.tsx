@@ -16,10 +16,12 @@ import {
   Trash2
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { getLocalStorage, setLocalStorage } from '../utils/storage'
+import { useToast } from '../contexts/ToastContext'
+import { api } from '../services/api'
+import Loading from '../components/ui/Loading'
 
 interface ProfileData {
-  id: string
+  _id: string
   name: string
   email: string
   phone: string
@@ -45,7 +47,7 @@ interface ProfileData {
   availability: 'available' | 'busy' | 'unavailable'
   languages: string[]
   certifications: Array<{
-    id: string
+    _id: string
     name: string
     issuer: string
     date: string
@@ -55,9 +57,11 @@ interface ProfileData {
 
 const Profile = () => {
   const { user, updateUser, getUserId } = useAuth() 
+  const { showSuccess, showError } = useToast()
   const [profileData, setProfileData] = useState<ProfileData | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
   
   // Form states
@@ -75,57 +79,96 @@ const Profile = () => {
 
   useEffect(() => {
     if (user) {
+      // Clear any corrupted profile data in localStorage
+      const profileKey = `profile_${getUserId()}`
+      const savedProfile = localStorage.getItem(profileKey)
+      if (savedProfile) {
+        try {
+          const parsed = JSON.parse(savedProfile)
+          // Check if the saved profile has correct structure
+          if (!parsed.name || !parsed.email || parsed.name === parsed.email) {
+            // Clear corrupted data
+            localStorage.removeItem(profileKey)
+            console.log('Cleared corrupted profile data')
+          }
+        } catch (error) {
+          // Clear invalid JSON data
+          localStorage.removeItem(profileKey)
+          console.log('Cleared invalid profile data')
+        }
+      }
+      
       loadProfileData()
     }
-  }, [user]) // Add user as dependency
+  }, [user])
 
-  const loadProfileData = () => {
+  const createDefaultProfile = () => {
+    if (!user) return
+    
+    const defaultProfile: ProfileData = {
+      _id: getUserId(),
+      name: user.name,
+      email: user.email,
+      phone: '',
+      location: '',
+      bio: '',
+      avatar: '',
+      role: user.role,
+      joinDate: new Date().toISOString(),
+      rating: 0,
+      totalProjects: 0,
+      completedProjects: 0,
+      skills: [],
+      experience: '',
+      education: '',
+      portfolio: '',
+      socialLinks: {},
+      hourlyRate: undefined,
+      availability: 'available',
+      languages: [],
+      certifications: []
+    }
+    setProfileData(defaultProfile)
+    setFormData(defaultProfile)
+  }
+
+  const loadProfileData = async () => {
     if (!user) return
 
-    // Load from localStorage with user-specific key
-    const profileKey = `profile_${getUserId()}`
-    const savedProfile = getLocalStorage(profileKey)
-    
-    if (savedProfile) {
-      // Ensure the profile data matches current user
-      const updatedProfile = {
-        ...savedProfile,
-        id: getUserId() || '',
-        name: user.name,
-        email: user.email,
-        role: user.role
+    try {
+      setIsLoading(true)
+      const response = await api.getProfile(getUserId())
+      setProfileData(response as ProfileData)
+      setFormData(response as Partial<ProfileData>)
+    } catch (error: any) {
+      console.error('Error loading profile:', error)
+      showError('Failed to load profile', error.message)
+      
+      // Fallback to localStorage if API fails
+      const profileKey = `profile_${getUserId()}`
+      const savedProfile = localStorage.getItem(profileKey)
+      
+      if (savedProfile) {
+        try {
+          const parsedProfile = JSON.parse(savedProfile)
+          // Validate the parsed profile data
+          if (parsedProfile.name && parsedProfile.email && parsedProfile.name !== parsedProfile.email) {
+            setProfileData(parsedProfile)
+            setFormData(parsedProfile)
+          } else {
+            throw new Error('Invalid profile data structure')
+          }
+        } catch (error) {
+          console.error('Error parsing saved profile:', error)
+          // Clear corrupted data and create default
+          localStorage.removeItem(`profile_${getUserId()}`)
+          createDefaultProfile()
+        }
+      } else {
+        createDefaultProfile()
       }
-      setProfileData(updatedProfile)
-      setFormData(updatedProfile)
-      setLocalStorage(profileKey, updatedProfile)
-    } else {
-      // Create default profile based on user data
-      const defaultProfile: ProfileData = {
-        id: getUserId() || '',
-        name: user.name,
-        email: user.email,
-        phone: '',
-        location: '',
-        bio: 'Tell us about yourself...',
-        avatar: '',
-        role: user.role,
-        joinDate: new Date().toISOString(),
-        rating: 0,
-        totalProjects: 0,
-        completedProjects: 0,
-        skills: [],
-        experience: 'entry',
-        education: '',
-        portfolio: '',
-        socialLinks: {},
-        hourlyRate: 0,
-        availability: 'available',
-        languages: ['English'],
-        certifications: []
-      }
-      setProfileData(defaultProfile)
-      setFormData(defaultProfile)
-      setLocalStorage(profileKey, defaultProfile)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -157,15 +200,12 @@ const Profile = () => {
   const handleSave = async () => {
     if (!validateForm() || !profileData || !user) return
 
-    setIsLoading(true)
+    setIsSaving(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const updatedProfile: ProfileData = {
+      const updatedProfile = {
         ...profileData,
         ...formData,
-        id: profileData.id,
+        _id: profileData._id,
         name: formData.name || profileData.name,
         email: formData.email || profileData.email,
         role: formData.role || profileData.role,
@@ -188,11 +228,19 @@ const Profile = () => {
         location: formData.location || profileData.location
       }
       
-      setProfileData(updatedProfile)
+      // Try to save to API first
+      try {
+        await api.updateProfile(getUserId(), updatedProfile)
+        showSuccess('Profile updated successfully!')
+      } catch (error: any) {
+        console.error('API update failed, saving to localStorage:', error)
+        // Fallback to localStorage
+        const profileKey = `profile_${getUserId()}`
+        localStorage.setItem(profileKey, JSON.stringify(updatedProfile))
+        showSuccess('Profile updated (saved locally)')
+      }
       
-      // Save with user-specific key
-      const profileKey = `profile_${getUserId()}`
-      setLocalStorage(profileKey, updatedProfile)
+      setProfileData(updatedProfile)
       
       // Update user context
       updateUser({
@@ -202,10 +250,11 @@ const Profile = () => {
       })
       
       setIsEditing(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving profile:', error)
+      showError('Failed to save profile', error.message)
     } finally {
-      setIsLoading(false)
+      setIsSaving(false)
     }
   }
 
@@ -228,7 +277,7 @@ const Profile = () => {
     if (!newCertification.name || !newCertification.issuer || !newCertification.date) return
 
     const certification = {
-      id: Date.now().toString(),
+      _id: Date.now().toString(),
       name: newCertification.name,
       issuer: newCertification.issuer,
       date: newCertification.date,
@@ -243,7 +292,7 @@ const Profile = () => {
   }
 
   const handleRemoveCertification = (id: string) => {
-    const updatedCertifications = (formData.certifications || []).filter(cert => cert.id !== id)
+    const updatedCertifications = (formData.certifications || []).filter(cert => cert._id !== id)
     setFormData(prev => ({ ...prev, certifications: updatedCertifications }))
   }
 
@@ -266,12 +315,19 @@ const Profile = () => {
     )
   }
 
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Loading size="lg" text="Loading profile..." />
+      </div>
+    )
+  }
+
   if (!profileData) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading profile...</p>
+          <p className="text-gray-600">Failed to load profile</p>
         </div>
       </div>
     )
@@ -292,7 +348,7 @@ const Profile = () => {
                 <button
                   onClick={handleCancel}
                   className="btn-secondary flex items-center gap-2"
-                  disabled={isLoading}
+                  disabled={isSaving}
                 >
                   <X className="w-4 h-4" />
                   Cancel
@@ -300,10 +356,10 @@ const Profile = () => {
                 <button
                   onClick={handleSave}
                   className="btn-primary flex items-center gap-2"
-                  disabled={isLoading}
+                  disabled={isSaving}
                 >
                   <Save className="w-4 h-4" />
-                  {isLoading ? 'Saving...' : 'Save Changes'}
+                  {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
               </>
             ) : (
@@ -348,7 +404,7 @@ const Profile = () => {
                 {isEditing ? (
                   <input
                     type="text"
-                    value={formData.name || ''}
+                    value={formData.name || profileData.name || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     className="text-center bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none"
                   />
@@ -396,7 +452,7 @@ const Profile = () => {
                 {isEditing ? (
                   <input
                     type="email"
-                    value={formData.email || ''}
+                    value={formData.email || profileData.email || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="flex-1 bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none"
                     placeholder="Email"
@@ -415,7 +471,7 @@ const Profile = () => {
                 {isEditing ? (
                   <input
                     type="tel"
-                    value={formData.phone || ''}
+                    value={formData.phone || profileData.phone || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                     className="flex-1 bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none"
                     placeholder="Phone"
@@ -434,7 +490,7 @@ const Profile = () => {
                 {isEditing ? (
                   <input
                     type="text"
-                    value={formData.location || ''}
+                    value={formData.location || profileData.location || ''}
                     onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                     className="flex-1 bg-transparent border-b border-gray-300 focus:border-blue-500 focus:outline-none"
                     placeholder="Location"
@@ -677,7 +733,7 @@ const Profile = () => {
 
                 <div className="space-y-4">
                   {(formData.certifications || []).map((cert) => (
-                    <div key={cert.id} className="flex justify-between items-start p-4 bg-gray-50 rounded-lg">
+                    <div key={cert._id} className="flex justify-between items-start p-4 bg-gray-50 rounded-lg">
                       <div>
                         <h4 className="font-medium text-gray-900">{cert.name}</h4>
                         <p className="text-sm text-gray-600">{cert.issuer}</p>
@@ -690,7 +746,7 @@ const Profile = () => {
                       </div>
                       {isEditing && (
                         <button
-                          onClick={() => handleRemoveCertification(cert.id)}
+                          onClick={() => handleRemoveCertification(cert._id)}
                           className="text-red-500 hover:text-red-700"
                         >
                           <Trash2 className="w-4 h-4" />

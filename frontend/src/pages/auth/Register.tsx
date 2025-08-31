@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { validateEmail, validatePassword, validateName, validateConfirmPassword } from '../../utils/validation'
-import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle } from 'lucide-react'
+import { Mail, Lock, User, Eye, EyeOff, AlertCircle, CheckCircle, Trash2 } from 'lucide-react'
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -49,7 +49,7 @@ const Register = () => {
     
     if (!validateForm()) return
     
-    const result = await register(formData.email, formData.password, formData.name, formData.role)
+    const result = await register(formData.name, formData.email, formData.password, formData.role)
     
     if (result.success) {
       navigate('/projects')
@@ -71,6 +71,13 @@ const Register = () => {
     if (password.length < 8) return { strength: 'Weak', color: 'text-red-500' }
     if (password.length < 12) return { strength: 'Medium', color: 'text-yellow-500' }
     return { strength: 'Strong', color: 'text-green-500' }
+  }
+
+  const clearLocalStorage = () => {
+    // Clear all localStorage data
+    localStorage.clear()
+    // Reload the page to reset the state
+    window.location.reload()
   }
 
   const passwordStrength = getPasswordStrength(formData.password)
@@ -100,7 +107,7 @@ const Register = () => {
               <span>{serverError}</span>
             </div>
           )}
-          
+
           <div className="space-y-4">
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
@@ -136,7 +143,6 @@ const Register = () => {
                   id="email"
                   name="email"
                   type="email"
-                  autoComplete="email"
                   required
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
@@ -157,18 +163,16 @@ const Register = () => {
               <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
                 I want to
               </label>
-              <div className="relative">
-                <select
-                  id="role"
-                  name="role"
-                  value={formData.role}
-                  onChange={(e) => setFormData({...formData, role: e.target.value as 'client' | 'freelancer'})}
-                  className="input-field"
-                >
-                  <option value="client">Hire freelancers</option>
-                  <option value="freelancer">Work as a freelancer</option>
-                </select>
-              </div>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={(e) => handleInputChange('role', e.target.value)}
+                className="input-field"
+              >
+                <option value="client">Hire freelancers</option>
+                <option value="freelancer">Work as a freelancer</option>
+              </select>
             </div>
             
             <div>
@@ -263,9 +267,24 @@ const Register = () => {
             </button>
           </div>
         </form>
+
+        {/* Clear Data Button */}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={clearLocalStorage}
+            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear all data
+          </button>
+          <p className="text-xs text-gray-400 mt-1">
+            Use this if you're having registration issues
+          </p>
+        </div>
       </div>
     </div>
   )
 }
 
-export default Register 
+export default Register

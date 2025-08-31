@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { validateEmail, validatePassword } from '../../utils/validation'
-import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, AlertCircle, Trash2 } from 'lucide-react'
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -52,6 +52,13 @@ const Login = () => {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
+  }
+
+  const clearLocalStorage = () => {
+    // Clear all localStorage data
+    localStorage.clear()
+    // Reload the page to reset the state
+    window.location.reload()
   }
 
   return (
@@ -158,9 +165,24 @@ const Login = () => {
             </button>
           </div>
         </form>
+
+        {/* Clear Data Button */}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={clearLocalStorage}
+            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-red-600 transition-colors"
+          >
+            <Trash2 className="w-4 h-4" />
+            Clear all data
+          </button>
+          <p className="text-xs text-gray-400 mt-1">
+            Use this if you're having login issues
+          </p>
+        </div>
       </div>
     </div>
   )
 }
 
-export default Login 
+export default Login

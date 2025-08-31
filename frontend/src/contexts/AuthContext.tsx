@@ -31,7 +31,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string, role: 'client' | 'freelancer') => Promise<{ success: boolean; error?: string }>
   logout: () => void
   updateUser: (updatedUser: Partial<User>) => void
-  getUserId: () => string | undefined
+  getUserId: () => string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)

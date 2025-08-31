@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
   Search, 
@@ -10,16 +10,19 @@ import {
   Users,
   SlidersHorizontal
 } from 'lucide-react'
-import { mockProjects, categories, skills } from '../data/mockProjects'
+import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
+import { api } from '../services/api'
 import type { Project, ProjectFilters } from '../types/project'
 import Modal from '../components/ui/Modal'
 import CreateProjectForm from '../components/projects/CreateProjectForm'
 import ApplyForm from '../components/projects/ApplyForm'
-import { useAuth } from '../contexts/AuthContext'
-import { getLocalStorage, setLocalStorage } from '../utils/storage'
 
 const Projects = () => {
-  const { user, getUserId } = useAuth()
+  const { user } = useAuth()
+  const { showSuccess, showError } = useToast()
+  const [projects, setProjects] = useState<Project[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [filters, setFilters] = useState<ProjectFilters>({
     search: '',
     category: '',
@@ -40,15 +43,27 @@ const Projects = () => {
   const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [isSubmittingApplication, setIsSubmittingApplication] = useState(false)
 
-  // Get projects from localStorage or use mock data
-  const allProjects = useMemo(() => {
-    const savedProjects = getLocalStorage('projects')
-    return savedProjects || mockProjects
+  // Load projects from API
+  useEffect(() => {
+    loadProjects()
   }, [])
+
+  const loadProjects = async () => {
+    try {
+      setIsLoading(true)
+      const response = await api.getProjects() as { projects: Project[] }
+      setProjects(response.projects || [])
+    } catch (error: any) {
+      console.error('Error loading projects:', error)
+      showError('Failed to load projects', error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Filter and sort projects
   const filteredProjects = useMemo(() => {
-    let filtered = [...allProjects]
+    let filtered = [...projects]
 
     // Search filter
     if (filters.search) {
@@ -114,7 +129,7 @@ const Projects = () => {
     })
 
     return filtered
-  }, [filters, allProjects])
+  }, [filters, projects])
 
   const handleSkillToggle = (skill: string) => {
     setSelectedSkills(prev => 
@@ -157,73 +172,33 @@ const Projects = () => {
   const handleCreateProject = async (data: any) => {
     setIsCreatingProject(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const newProject: Project = {
-        id: Date.now().toString(),
-        title: data.title,
-        description: data.description,
-        budget: data.budget,
-        skills: data.skills,
-        category: data.category,
-        postedBy: {
-          id: getUserId() || 'unknown',
-          name: user?.name || 'Unknown',
-          rating: 5.0
-        },
-        postedDate: new Date().toISOString(),
-        proposals: 0,
-        status: 'open',
-        location: data.location,
-        duration: data.duration,
-        experience: data.experience
-      }
-
-      // Save to localStorage
-      const updatedProjects = [newProject, ...allProjects]
-      setLocalStorage('projects', updatedProjects)
-      
+      await api.createProject(data)
+      showSuccess('Project created successfully!')
       setShowCreateProject(false)
-      // You could add a success notification here
-    } catch (error) {
+      loadProjects() // Reload projects
+    } catch (error: any) {
       console.error('Error creating project:', error)
+      showError('Failed to create project', error.message)
     } finally {
       setIsCreatingProject(false)
     }
   }
 
-  const handleApplyToProject = async (data: any) => {
+  const handleApplyToProject = async () => {
     if (!selectedProject) return
     
     setIsSubmittingApplication(true)
     try {
-      // Simulate API call
+      // For now, we'll simulate the application process
+      // In a real app, you'd call an API endpoint
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Save application to localStorage
-      const applications = getLocalStorage('applications') || []
-      const newApplication = {
-        id: Date.now().toString(),
-        projectId: selectedProject.id,
-        projectTitle: selectedProject.title,
-        freelancerId: getUserId(),
-        freelancerName: user?.name,
-        coverLetter: data.coverLetter,
-        proposedBudget: data.proposedBudget,
-        estimatedDuration: data.estimatedDuration,
-        submittedAt: new Date().toISOString(),
-        status: 'pending'
-      }
-      
-      applications.push(newApplication)
-      setLocalStorage('applications', applications)
-      
+      showSuccess('Application submitted successfully!')
       setShowApplyForm(false)
       setSelectedProject(null)
-      // You could add a success notification here
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting application:', error)
+      showError('Failed to submit application', error.message)
     } finally {
       setIsSubmittingApplication(false)
     }
@@ -231,12 +206,22 @@ const Projects = () => {
 
   const handleApplyClick = (project: Project) => {
     if (!user) {
-      // Redirect to login or show login modal
-      alert('Please log in to apply for projects')
+      showError('Authentication required', 'Please log in to apply for projects')
       return
     }
     setSelectedProject(project)
     setShowApplyForm(true)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading projects...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -303,9 +288,11 @@ const Projects = () => {
                   className="input-field"
                 >
                   <option value="">All Categories</option>
-                  {categories.map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
+                  <option value="Web Development">Web Development</option>
+                  <option value="Mobile Development">Mobile Development</option>
+                  <option value="Design">Design</option>
+                  <option value="Writing">Writing</option>
+                  <option value="Marketing">Marketing</option>
                 </select>
               </div>
 
@@ -364,7 +351,7 @@ const Projects = () => {
             <div className="mt-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">Skills</label>
               <div className="flex flex-wrap gap-2">
-                {skills.slice(0, 20).map(skill => (
+                {['JavaScript', 'React', 'Node.js', 'Python', 'Java', 'C++', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'TypeScript', 'Vue.js', 'Angular', 'Django', 'Flask', 'Express', 'MongoDB', 'PostgreSQL', 'MySQL', 'Redis', 'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'Git', 'CI/CD', 'Agile', 'Scrum'].map((skill) => (
                   <button
                     key={skill}
                     onClick={() => handleSkillToggle(skill)}

@@ -13,10 +13,12 @@ import {
   Calendar
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { getLocalStorage, setLocalStorage } from '../utils/storage'
+import { useToast } from '../contexts/ToastContext'
+import { api } from '../services/api'
+import Loading from '../components/ui/Loading'
 
 interface Invite {
-  id: string
+  _id: string
   projectId: string
   projectTitle: string
   projectDescription: string
@@ -40,10 +42,12 @@ interface Invite {
 
 const Invites = () => {
   const { user, getUserId } = useAuth()
+  const { showSuccess, showError } = useToast()
   const [invites, setInvites] = useState<Invite[]>([])
   const [filteredInvites, setFilteredInvites] = useState<Invite[]>([])
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'declined'>('all')
   const [isLoading, setIsLoading] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [selectedInvite, setSelectedInvite] = useState<Invite | null>(null)
   const [showInviteDetails, setShowInviteDetails] = useState(false)
 
@@ -55,112 +59,22 @@ const Invites = () => {
     filterInvites()
   }, [invites, statusFilter])
 
-  const loadInvites = () => {
-    // Load from localStorage or create mock data
-    const savedInvites = getLocalStorage('invites')
-    if (savedInvites) {
-      setInvites(savedInvites)
-    } else {
-      // Create mock invites with more pending ones
-      const mockInvites: Invite[] = [
-        {
-          id: '1',
-          projectId: '1',
-          projectTitle: 'E-commerce Website Development',
-          projectDescription: 'Need a modern e-commerce website with payment integration and admin panel.',
-          clientId: 'client1',
-          clientName: 'John Smith',
-          clientRating: 4.8,
-          freelancerId: getUserId() || 'unknown',
-          freelancerName: user?.name || 'Unknown',
-          message: 'Hi! I saw your profile and I think you would be perfect for this project. Your React and Node.js skills are exactly what we need.',
-          budget: { min: 2000, max: 5000 },
-          duration: '2-3 months',
-          location: 'Remote',
-          status: 'pending', // Changed to pending
-          sentAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-          skills: ['React', 'Node.js', 'MongoDB', 'Payment Integration']
-        },
-        {
-          id: '2',
-          projectId: '2',
-          projectTitle: 'Mobile App for Food Delivery',
-          projectDescription: 'Looking for a developer to create a food delivery mobile app with real-time tracking.',
-          clientId: 'client2',
-          clientName: 'Sarah Johnson',
-          clientRating: 4.9,
-          freelancerId: getUserId() || 'unknown',
-          freelancerName: user?.name || 'Unknown',
-          message: 'Your portfolio impressed me! I need someone with experience in React Native and Firebase.',
-          budget: { min: 3000, max: 8000 },
-          duration: '3-4 months',
-          location: 'Remote',
-          status: 'pending', // Changed to pending
-          sentAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          expiresAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-          skills: ['React Native', 'Firebase', 'Google Maps API', 'Push Notifications']
-        },
-        {
-          id: '3',
-          projectId: '3',
-          projectTitle: 'AI Chatbot Development',
-          projectDescription: 'Need an AI-powered chatbot for customer support with natural language processing.',
-          clientId: 'client3',
-          clientName: 'Mike Wilson',
-          clientRating: 4.5,
-          freelancerId: getUserId() || 'unknown',
-          freelancerName: user?.name || 'Unknown',
-          message: 'Your AI/ML skills caught my attention. This project requires expertise in Python and NLP.',
-          budget: { min: 5000, max: 12000 },
-          duration: '4-6 months',
-          location: 'Remote',
-          status: 'pending', // Changed to pending
-          sentAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          expiresAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
-          skills: ['Python', 'Machine Learning', 'NLP', 'TensorFlow', 'OpenAI API']
-        },
-        {
-          id: '4',
-          projectId: '4',
-          projectTitle: 'Social Media Dashboard',
-          projectDescription: 'Create a comprehensive dashboard for managing multiple social media accounts.',
-          clientId: 'client4',
-          clientName: 'Emily Davis',
-          clientRating: 4.7,
-          freelancerId: getUserId() || 'unknown',
-          freelancerName: user?.name || 'Unknown',
-          message: 'Looking for a developer with experience in social media APIs and data visualization.',
-          budget: { min: 1500, max: 4000 },
-          duration: '1-2 months',
-          location: 'Remote',
-          status: 'accepted', // Keep one accepted for testing
-          sentAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-          skills: ['React', 'Node.js', 'Social Media APIs', 'Chart.js', 'MongoDB']
-        },
-        {
-          id: '5',
-          projectId: '5',
-          projectTitle: 'Blockchain Smart Contract',
-          projectDescription: 'Develop smart contracts for a DeFi application on Ethereum blockchain.',
-          clientId: 'client5',
-          clientName: 'Alex Chen',
-          clientRating: 4.6,
-          freelancerId: getUserId() || 'unknown',
-          freelancerName: user?.name || 'Unknown',
-          message: 'Need a blockchain developer with Solidity experience for our DeFi project.',
-          budget: { min: 8000, max: 20000 },
-          duration: '3-5 months',
-          location: 'Remote',
-          status: 'declined', // Keep one declined for testing
-          sentAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-          expiresAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          skills: ['Solidity', 'Ethereum', 'Web3.js', 'Smart Contracts', 'DeFi']
-        }
-      ]
-      setInvites(mockInvites)
-      setLocalStorage('invites', mockInvites)
+  const loadInvites = async () => {
+    try {
+      setIsLoading(true)
+      const response = await api.getInvites() as { invites: Invite[] }
+      setInvites(response.invites || [])
+    } catch (error: any) {
+      console.error('Error loading invites:', error)
+      showError('Failed to load invites', error.message)
+      
+      // Fallback to localStorage if API fails
+      const savedInvites = localStorage.getItem('invites')
+      if (savedInvites) {
+        setInvites(JSON.parse(savedInvites))
+      }
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -173,50 +87,59 @@ const Invites = () => {
   }
 
   const handleInviteAction = async (inviteId: string, action: 'accept' | 'decline') => {
-    setIsLoading(true)
+    setIsProcessing(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      await api.respondToInvite(inviteId, action)
       
       const updatedInvites = invites.map(invite => 
-        invite.id === inviteId 
+        invite._id === inviteId 
           ? { ...invite, status: action === 'accept' ? 'accepted' : 'declined' }
           : invite
       )
       
-      const typedUpdatedInvites = updatedInvites.map(invite => ({
-        ...invite,
-        status: invite.status as "pending" | "accepted" | "declined" | "expired"
-      }))
+      setInvites(updatedInvites as Invite[])
       
-      setInvites(typedUpdatedInvites)
-      setLocalStorage('invites', typedUpdatedInvites)
+      // Save to localStorage as fallback
+      localStorage.setItem('invites', JSON.stringify(updatedInvites))
+      
+      showSuccess(
+        `Invitation ${action === 'accept' ? 'accepted' : 'declined'} successfully!`
+      )
       
       // If accepted, create a project application
       if (action === 'accept') {
-        const invite = invites.find(i => i.id === inviteId)
+        const invite = invites.find(i => i._id === inviteId)
         if (invite) {
-          const applications = getLocalStorage('applications') || []
-          const newApplication = {
-            id: Date.now().toString(),
-            projectId: invite.projectId,
-            projectTitle: invite.projectTitle,
-            freelancerId: getUserId(),
-            freelancerName: user?.name,
-            coverLetter: `I'm excited to work on this project! I accept the invitation and look forward to collaborating.`,
-            proposedBudget: invite.budget.max,
-            estimatedDuration: invite.duration,
-            submittedAt: new Date().toISOString(),
-            status: 'accepted'
+          try {
+            // In a real app, you'd call an API to create an application
+            const applications = JSON.parse(localStorage.getItem('applications') || '[]')
+            const newApplication = {
+              _id: Date.now().toString(),
+              projectId: invite.projectId,
+              projectTitle: invite.projectTitle,
+              freelancerId: getUserId(),
+              freelancerName: user?.name,
+              coverLetter: `I'm excited to work on this project! I accept the invitation and look forward to collaborating.`,
+              proposedBudget: invite.budget.max,
+              estimatedDuration: invite.duration,
+              submittedAt: new Date().toISOString(),
+              status: 'accepted'
+            }
+            applications.push(newApplication)
+            localStorage.setItem('applications', JSON.stringify(applications))
+          } catch (error) {
+            console.error('Error creating application:', error)
           }
-          applications.push(newApplication)
-          setLocalStorage('applications', applications)
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating invite:', error)
+      showError(
+        `Failed to ${action} invitation`, 
+        error.message
+      )
     } finally {
-      setIsLoading(false)
+      setIsProcessing(false)
     }
   }
 
@@ -252,6 +175,14 @@ const Invites = () => {
       case 'expired': return <Clock className="w-4 h-4" />
       default: return <Clock className="w-4 h-4" />
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Loading size="lg" text="Loading invites..." />
+      </div>
+    )
   }
 
   return (
@@ -323,7 +254,7 @@ const Invites = () => {
         ) : (
           filteredInvites.map((invite) => (
             <motion.div
-              key={invite.id}
+              key={invite._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="card-hover"
@@ -411,16 +342,16 @@ const Invites = () => {
                   {invite.status === 'pending' && !isExpired(invite.expiresAt) && (
                     <>
                       <button
-                        onClick={() => handleInviteAction(invite.id, 'accept')}
-                        disabled={isLoading}
+                        onClick={() => handleInviteAction(invite._id, 'accept')}
+                        disabled={isProcessing}
                         className="btn-primary flex items-center gap-2"
                       >
                         <Check className="w-4 h-4" />
                         Accept
                       </button>
                       <button
-                        onClick={() => handleInviteAction(invite.id, 'decline')}
-                        disabled={isLoading}
+                        onClick={() => handleInviteAction(invite._id, 'decline')}
+                        disabled={isProcessing}
                         className="btn-secondary flex items-center gap-2"
                       >
                         <X className="w-4 h-4" />
@@ -504,13 +435,13 @@ const Invites = () => {
               {selectedInvite.status === 'pending' && !isExpired(selectedInvite.expiresAt) && (
                 <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
                   <button
-                    onClick={() => handleInviteAction(selectedInvite.id, 'decline')}
+                    onClick={() => handleInviteAction(selectedInvite._id, 'decline')}
                     className="btn-secondary"
                   >
                     Decline
                   </button>
                   <button
-                    onClick={() => handleInviteAction(selectedInvite.id, 'accept')}
+                    onClick={() => handleInviteAction(selectedInvite._id, 'accept')}
                     className="btn-primary"
                   >
                     Accept Invitation

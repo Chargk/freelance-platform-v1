@@ -13,10 +13,13 @@ import {
   CheckCheck
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { getLocalStorage, setLocalStorage } from '../utils/storage'
+import { useToast } from '../contexts/ToastContext'
+import { api } from '../services/api'
+import Loading from '../components/ui/Loading'
+import { io, type Socket } from 'socket.io-client'
 
 interface ChatUser {
-  id: string
+  _id: string
   name: string
   avatar: string
   role: 'client' | 'freelancer'
@@ -25,7 +28,8 @@ interface ChatUser {
 }
 
 interface Message {
-  id: string
+  _id: string
+  chatId: string
   senderId: string
   receiverId: string
   content: string
@@ -36,7 +40,7 @@ interface Message {
 }
 
 interface Chat {
-  id: string
+  _id: string
   participants: [string, string] // [currentUserId, otherUserId]
   lastMessage: Message
   unreadCount: number
@@ -46,6 +50,7 @@ interface Chat {
 
 const Chat = () => {
   const { user, getUserId } = useAuth()
+  const { showError } = useToast()
   const [chats, setChats] = useState<Chat[]>([])
   const [users, setUsers] = useState<ChatUser[]>([])
   const [messages, setMessages] = useState<Message[]>([])
@@ -54,152 +59,134 @@ const Chat = () => {
   const [newMessage, setNewMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const socketRef = useRef<Socket | null>(null)
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     loadChatData()
+    initializeSocket()
+    
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+      }
+    }
   }, [])
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
 
-  const loadChatData = () => {
-    // Load from localStorage or create mock data
-    const savedChats = getLocalStorage('chats')
-    const savedUsers = getLocalStorage('chatUsers')
-    const savedMessages = getLocalStorage('messages')
+  const initializeSocket = () => {
+    // Connect to WebSocket server
+    socketRef.current = io('http://localhost:5001', {
+      auth: {
+        token: localStorage.getItem('token')
+      }
+    })
 
-    if (savedChats && savedUsers && savedMessages) {
-      setChats(savedChats)
-      setUsers(savedUsers)
-      setMessages(savedMessages)
-    } else {
-      // Create mock data
-      const mockUsers: ChatUser[] = [
-        {
-          id: 'user1',
-          name: 'John Smith',
-          avatar: '',
-          role: 'client',
-          isOnline: true,
-          lastSeen: new Date().toISOString()
-        },
-        {
-          id: 'user2',
-          name: 'Sarah Johnson',
-          avatar: '',
-          role: 'client',
-          isOnline: false,
-          lastSeen: new Date(Date.now() - 30 * 60 * 1000).toISOString()
-        },
-        {
-          id: 'user3',
-          name: 'Mike Wilson',
-          avatar: '',
-          role: 'client',
-          isOnline: true,
-          lastSeen: new Date().toISOString()
-        },
-        {
-          id: 'user4',
-          name: 'Emily Davis',
-          avatar: '',
-          role: 'freelancer',
-          isOnline: false,
-          lastSeen: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    // Authentication
+    socketRef.current.on('authenticated', () => {
+      console.log('WebSocket authenticated')
+    })
+
+    // Receive new messages
+    socketRef.current.on('newMessage', (message: Message) => {
+      setMessages(prev => [...prev, message])
+      
+      // Update last message in chat
+      setChats(prev => prev.map(chat => {
+        if (chat._id === message.chatId) {
+          return {
+            ...chat,
+            lastMessage: message,
+            unreadCount: chat.unreadCount + 1
+          }
         }
-      ]
+        return chat
+      }))
+    })
 
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          senderId: 'user1',
-          receiverId: getUserId() || 'unknown',
-          content: 'Hi! I really liked your proposal for the e-commerce project.',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          isRead: true,
-          type: 'text'
-        },
-        {
-          id: '2',
-          senderId: getUserId() || 'unknown',
-          receiverId: 'user1',
-          content: 'Thank you! I\'m excited to work on this project. When would you like to start?',
-          timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(),
-          isRead: true,
-          type: 'text'
-        },
-        {
-          id: '3',
-          senderId: 'user1',
-          receiverId: getUserId() || 'unknown',
-          content: 'Perfect! Let\'s start next week. I\'ll send you the project requirements.',
-          timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          isRead: false,
-          type: 'text'
-        },
-        {
-          id: '4',
-          senderId: 'user2',
-          receiverId: getUserId() || 'unknown',
-          content: 'Hello! Are you available for a new project?',
-          timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-          isRead: true,
-          type: 'text'
-        },
-        {
-          id: '5',
-          senderId: getUserId() || 'unknown',
-          receiverId: 'user2',
-          content: 'Hi Sarah! Yes, I\'m available. What kind of project do you have in mind?',
-          timestamp: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(),
-          isRead: true,
-          type: 'text'
-        }
-      ]
+    // User typing
+    socketRef.current.on('userTyping', (data: { userId: string; chatId: string }) => {
+      if (selectedChat?._id === data.chatId) {
+        setTypingUsers(prev => new Set(prev).add(data.userId))
+      }
+    })
 
-      const mockChats: Chat[] = [
-        {
-          id: 'chat1',
-          participants: [getUserId() || 'unknown', 'user1'],
-          lastMessage: mockMessages[2],
-          unreadCount: 1,
-          projectId: '1',
-          projectTitle: 'E-commerce Website Development'
-        },
-        {
-          id: 'chat2',
-          participants: [getUserId() || 'unknown', 'user2'],
-          lastMessage: mockMessages[4],
-          unreadCount: 0,
-          projectId: '2',
-          projectTitle: 'Mobile App Development'
-        },
-        {
-          id: 'chat3',
-          participants: [getUserId() || 'unknown', 'user3'],
-          lastMessage: {
-            id: '6',
-            senderId: 'user3',
-            receiverId: getUserId() || 'unknown',
-            content: 'Thanks for the great work on the previous project!',
-            timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-            isRead: true,
-            type: 'text'
-          },
-          unreadCount: 0,
-          projectId: '3',
-          projectTitle: 'AI Chatbot Development'
-        }
-      ]
+    // User stopped typing
+    socketRef.current.on('userStoppedTyping', (data: { userId: string; chatId: string }) => {
+      if (selectedChat?._id === data.chatId) {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(data.userId)
+          return newSet
+        })
+      }
+    })
 
-      setUsers(mockUsers)
-      setMessages(mockMessages)
-      setChats(mockChats)
-      setLocalStorage('chatUsers', mockUsers)
-      setLocalStorage('messages', mockMessages)
-      setLocalStorage('chats', mockChats)
+    // Message read
+    socketRef.current.on('messageRead', (data: { messageId: string; chatId: string }) => {
+      setMessages(prev => prev.map(msg => 
+        msg._id === data.messageId ? { ...msg, isRead: true } : msg
+      ))
+    })
+
+    // User online/offline status
+    socketRef.current.on('userStatusChange', (data: { userId: string; isOnline: boolean }) => {
+      setUsers(prev => prev.map(user => 
+        user._id === data.userId ? { ...user, isOnline: data.isOnline } : user
+      ))
+    })
+
+    // Error handling
+    socketRef.current.on('error', (error: any) => {
+      console.error('WebSocket error:', error)
+      showError('Connection error', 'Lost connection to chat server')
+    })
+  }
+
+  const loadChatData = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Load chats
+      const chatsResponse = await api.getChats() as { chats: Chat[] }
+      setChats(chatsResponse.chats || [])
+      
+      // Load users (in real app this would be a separate API)
+      // Here would be logic to load users
+      
+    } catch (error: any) {
+      console.error('Error loading chat data:', error)
+      showError('Failed to load chats', error.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadMessages = async (chatId: string) => {
+    try {
+      setIsLoadingMessages(true)
+      const response = await api.getMessages(chatId) as { messages: Message[] }
+      setMessages(response.messages || [])
+      
+      // Join chat via WebSocket
+      if (socketRef.current) {
+        socketRef.current.emit('joinChat', { chatId })
+      }
+      
+      // Mark messages as read
+      await api.markAsRead(chatId)
+      
+    } catch (error: any) {
+      console.error('Error loading messages:', error)
+      showError('Failed to load messages', error.message)
+    } finally {
+      setIsLoadingMessages(false)
     }
   }
 
@@ -210,78 +197,77 @@ const Chat = () => {
   const handleSendMessage = async () => {
     if (!newMessage.trim() || !selectedChat || !user) return
 
-    setIsLoading(true)
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      const message: Message = {
-        id: Date.now().toString(),
-        senderId: getUserId() || '',
-        receiverId: selectedUser?.id || '',
-        content: newMessage.trim(),
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        type: 'text'
+      // Send via WebSocket for speed
+      if (socketRef.current) {
+        socketRef.current.emit('sendMessage', {
+          chatId: selectedChat._id,
+          content: newMessage.trim(),
+          type: 'text'
+        })
       }
 
-      const updatedMessages = [...messages, message]
-      setMessages(updatedMessages)
-      setLocalStorage('messages', updatedMessages)
-
-      // Update chat's last message
-      const updatedChats = chats.map(chat => 
-        chat.id === selectedChat.id 
-          ? { ...chat, lastMessage: message, unreadCount: 0 }
-          : chat
-      )
-      setChats(updatedChats)
-      setLocalStorage('chats', updatedChats)
+      // Also send via API for reliability
+      await api.sendMessage({
+        chatId: selectedChat._id,
+        content: newMessage.trim(),
+        type: 'text'
+      })
 
       setNewMessage('')
-    } catch (error) {
+      
+      // Stop typing indicator
+      if (socketRef.current) {
+        socketRef.current.emit('stopTyping', { chatId: selectedChat._id })
+      }
+      
+    } catch (error: any) {
       console.error('Error sending message:', error)
-    } finally {
-      setIsLoading(false)
+      showError('Failed to send message', error.message)
     }
+  }
+
+  const handleTyping = () => {
+    if (!socketRef.current || !selectedChat) return
+
+    // Send typing indicator
+    socketRef.current.emit('typing', { chatId: selectedChat._id })
+
+    // Clear previous timer
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    // Set new timer
+    typingTimeoutRef.current = setTimeout(() => {
+      if (socketRef.current) {
+        socketRef.current.emit('stopTyping', { chatId: selectedChat._id })
+      }
+    }, 3000) // Stop after 3 seconds
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSendMessage()
+    } else {
+      handleTyping()
     }
   }
 
-  const selectChat = (chat: Chat) => {
+  const selectChat = async (chat: Chat) => {
     setSelectedChat(chat)
     const otherUserId = chat.participants.find(id => id !== getUserId())
-    const otherUser = users.find(u => u.id === otherUserId)
+    const otherUser = users.find(u => u._id === otherUserId)
     setSelectedUser(otherUser || null)
 
-    // Mark messages as read
-    const updatedMessages = messages.map(msg => 
-      msg.senderId === otherUserId && msg.receiverId === getUserId()
-        ? { ...msg, isRead: true }
-        : msg
-    )
-    setMessages(updatedMessages)
-    setLocalStorage('messages', updatedMessages)
+    // Load messages
+    await loadMessages(chat._id)
 
-    // Update unread count
-    const updatedChats = chats.map(c => 
-      c.id === chat.id ? { ...c, unreadCount: 0 } : c
-    )
-    setChats(updatedChats)
-    setLocalStorage('chats', updatedChats)
-  }
-
-  const getChatMessages = () => {
-    if (!selectedChat) return []
-    return messages.filter(msg => 
-      (msg.senderId === selectedChat.participants[0] && msg.receiverId === selectedChat.participants[1]) ||
-      (msg.senderId === selectedChat.participants[1] && msg.receiverId === selectedChat.participants[0])
-    ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    // Clear unread messages
+    setChats(prev => prev.map(c => 
+      c._id === chat._id ? { ...c, unreadCount: 0 } : c
+    ))
   }
 
   const formatTime = (timestamp: string) => {
@@ -300,14 +286,22 @@ const Chat = () => {
 
   const filteredChats = chats.filter(chat => {
     const otherUserId = chat.participants.find(id => id !== getUserId())
-    const otherUser = users.find(u => u.id === otherUserId)
+    const otherUser = users.find(u => u._id === otherUserId)
     return otherUser?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
            chat.projectTitle?.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
   const getOtherUser = (chat: Chat) => {
     const otherUserId = chat.participants.find(id => id !== getUserId())
-    return users.find(u => u.id === otherUserId)
+    return users.find(u => u._id === otherUserId)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Loading size="lg" text="Loading chats..." />
+      </div>
+    )
   }
 
   return (
@@ -347,12 +341,12 @@ const Chat = () => {
 
                 return (
                   <motion.div
-                    key={chat.id}
+                    key={chat._id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     onClick={() => selectChat(chat)}
                     className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      selectedChat?.id === chat.id ? 'bg-blue-50 border-blue-200' : ''
+                      selectedChat?._id === chat._id ? 'bg-blue-50 border-blue-200' : ''
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -476,37 +470,64 @@ const Chat = () => {
 
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4">
-                <div className="space-y-4">
-                  {getChatMessages().map((message) => (
-                    <motion.div
-                      key={message.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className={`flex ${message.senderId === getUserId() ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.senderId === getUserId()
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}>
-                        <p className="text-sm">{message.content}</p>
-                        <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
-                          message.senderId === getUserId() ? 'text-blue-100' : 'text-gray-500'
+                {isLoadingMessages ? (
+                  <div className="flex justify-center py-8">
+                    <Loading size="md" text="Loading messages..." />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.map((message) => (
+                      <motion.div
+                        key={message._id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`flex ${message.senderId === getUserId() ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                          message.senderId === getUserId()
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-900'
                         }`}>
-                          <span>{formatTime(message.timestamp)}</span>
-                          {message.senderId === getUserId() && (
-                            message.isRead ? (
-                              <CheckCheck className="w-3 h-3" />
-                            ) : (
-                              <Check className="w-3 h-3" />
-                            )
-                          )}
+                          <p className="text-sm">{message.content}</p>
+                          <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
+                            message.senderId === getUserId() ? 'text-blue-100' : 'text-gray-500'
+                          }`}>
+                            <span>{formatTime(message.timestamp)}</span>
+                            {message.senderId === getUserId() && (
+                              message.isRead ? (
+                                <CheckCheck className="w-3 h-3" />
+                              ) : (
+                                <Check className="w-3 h-3" />
+                              )
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
+                      </motion.div>
+                    ))}
+                    
+                    {/* Typing indicator */}
+                    {typingUsers.size > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex justify-start"
+                      >
+                        <div className="bg-gray-100 text-gray-900 px-4 py-2 rounded-lg">
+                          <div className="flex items-center gap-1">
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            </div>
+                            <span className="text-xs">typing...</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                    
+                    <div ref={messagesEndRef} />
+                  </div>
+                )}
               </div>
 
               {/* Message Input */}
@@ -534,7 +555,7 @@ const Chat = () => {
                     </button>
                     <button
                       onClick={handleSendMessage}
-                      disabled={!newMessage.trim() || isLoading}
+                      disabled={!newMessage.trim()}
                       className="btn-primary p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
@@ -560,4 +581,4 @@ const Chat = () => {
   )
 }
 
-export default Chat 
+export default Chat
