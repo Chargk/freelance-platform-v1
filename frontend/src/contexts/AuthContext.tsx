@@ -14,11 +14,12 @@ interface UserWithPassword extends User {
 
 interface AuthContextType {
   user: User | null
-  isLoading: boolean // Add loading state
+  isLoading: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   register: (name: string, email: string, password: string, role: 'client' | 'freelancer') => Promise<{ success: boolean; error?: string }>
   logout: () => void
   updateUser: (updatedUser: Partial<User>) => void
+  clearAllData: () => void // Add function to clear all data
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -37,7 +38,7 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true) // Start with loading true
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Check if user is logged in on app start
@@ -45,7 +46,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (savedUser) {
       setUser(savedUser)
     }
-    setIsLoading(false) // Set loading to false after check
+    setIsLoading(false)
   }, [])
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
@@ -53,8 +54,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Get users from localStorage
       const users: UserWithPassword[] = getLocalStorage('users') || []
       
-      // Find user by email and password
-      const foundUser = users.find(u => u.email === email && u.password === password)
+      // Find user by email and password (case-insensitive)
+      const foundUser = users.find(u => 
+        u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      )
       
       if (!foundUser) {
         return { success: false, error: 'Invalid email or password' }
@@ -76,8 +79,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Get existing users
       const users: UserWithPassword[] = getLocalStorage('users') || []
       
-      // Check if user already exists
-      if (users.find(u => u.email === email)) {
+      // Check if user already exists (case-insensitive email check)
+      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase())
+      if (existingUser) {
+        console.log('Existing users:', users.map(u => ({ email: u.email, name: u.name })))
+        console.log('Trying to register with email:', email)
         return { success: false, error: 'User with this email already exists' }
       }
 
@@ -85,7 +91,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const newUser: UserWithPassword = {
         id: Date.now().toString(),
         name,
-        email,
+        email: email.toLowerCase(), // Store email in lowercase
         password,
         role
       }
@@ -101,6 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       return { success: true }
     } catch (error) {
+      console.error('Registration error:', error)
       return { success: false, error: 'Registration failed' }
     }
   }
@@ -126,13 +133,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
+  // Function to clear all data (useful for development/testing)
+  const clearAllData = () => {
+    setUser(null)
+    setLocalStorage('user', null)
+    setLocalStorage('users', null)
+    setLocalStorage('profile', null)
+    setLocalStorage('projects', null)
+    setLocalStorage('invites', null)
+    setLocalStorage('messages', null)
+    setLocalStorage('chatUsers', null)
+    setLocalStorage('applications', null)
+    
+    // Clear all profile data for all users
+    const keys = Object.keys(localStorage)
+    keys.forEach(key => {
+      if (key.startsWith('profile_')) {
+        localStorage.removeItem(key)
+      }
+    })
+  }
+
   const value = {
     user,
     isLoading,
     login,
     register,
     logout,
-    updateUser
+    updateUser,
+    clearAllData
   }
 
   return (

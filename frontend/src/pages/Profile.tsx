@@ -79,26 +79,41 @@ const Profile = () => {
   })
 
   useEffect(() => {
-    loadProfileData()
-  }, [])
+    if (user) {
+      loadProfileData()
+    }
+  }, [user]) // Add user as dependency
 
   const loadProfileData = () => {
-    // Load from localStorage or create default profile
-    const savedProfile = getLocalStorage('profile')
+    if (!user) return
+
+    // Load from localStorage with user-specific key
+    const profileKey = `profile_${user.id}`
+    const savedProfile = getLocalStorage(profileKey)
+    
     if (savedProfile) {
-      setProfileData(savedProfile)
-      setFormData(savedProfile)
+      // Ensure the profile data matches current user
+      const updatedProfile = {
+        ...savedProfile,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+      setProfileData(updatedProfile)
+      setFormData(updatedProfile)
+      setLocalStorage(profileKey, updatedProfile)
     } else {
       // Create default profile based on user data
       const defaultProfile: ProfileData = {
-        id: user?.id || 'unknown',
-        name: user?.name || 'Unknown User',
-        email: user?.email || '',
+        id: user.id,
+        name: user.name,
+        email: user.email,
         phone: '',
         location: '',
         bio: 'Tell us about yourself...',
         avatar: '',
-        role: user?.role || 'freelancer',
+        role: user.role,
         joinDate: new Date().toISOString(),
         rating: 0,
         totalProjects: 0,
@@ -115,7 +130,7 @@ const Profile = () => {
       }
       setProfileData(defaultProfile)
       setFormData(defaultProfile)
-      setLocalStorage('profile', defaultProfile)
+      setLocalStorage(profileKey, defaultProfile)
     }
   }
 
@@ -145,13 +160,12 @@ const Profile = () => {
   }
 
   const handleSave = async () => {
-    if (!validateForm() || !profileData) return
+    if (!validateForm() || !profileData || !user) return
 
     setIsLoading(true)
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
       
       const updatedProfile: ProfileData = {
         ...profileData,
@@ -180,13 +194,16 @@ const Profile = () => {
       }
       
       setProfileData(updatedProfile)
-      setLocalStorage('profile', updatedProfile)
       
-
+      // Save with user-specific key
+      const profileKey = `profile_${user.id}`
+      setLocalStorage(profileKey, updatedProfile)
+      
+      // Update user context
       updateUser({
-        name: formData.name || user?.name,
-        email: formData.email || user?.email,
-        role: formData.role || user?.role
+        name: formData.name || user.name,
+        email: formData.email || user.email,
+        role: formData.role || user.role
       })
       
       setIsEditing(false)
@@ -242,6 +259,16 @@ const Profile = () => {
       : [...currentLanguages, language]
     
     setFormData(prev => ({ ...prev, languages: newLanguages }))
+  }
+
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center py-12">
+          <p className="text-gray-600">Please log in to view your profile</p>
+        </div>
+      </div>
+    )
   }
 
   if (!profileData) {
