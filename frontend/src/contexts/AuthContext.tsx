@@ -1,12 +1,11 @@
-import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import { getLocalStorage, setLocalStorage, removeLocalStorage } from '../utils/storage'
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { getLocalStorage, setLocalStorage } from '../utils/storage'
 
 interface User {
   id: string
-  email: string
   name: string
+  email: string
   role: 'client' | 'freelancer'
-  avatar?: string
 }
 
 interface UserWithPassword extends User {
@@ -15,10 +14,10 @@ interface UserWithPassword extends User {
 
 interface AuthContextType {
   user: User | null
+  isLoading: boolean // Add loading state
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  register: (email: string, password: string, name: string, role: 'client' | 'freelancer') => Promise<{ success: boolean; error?: string }>
+  register: (name: string, email: string, password: string, role: 'client' | 'freelancer') => Promise<{ success: boolean; error?: string }>
   logout: () => void
-  isLoading: boolean
   updateUser: (updatedUser: Partial<User>) => void
 }
 
@@ -38,90 +37,78 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start with loading true
 
-  // Load user from localStorage on app start
   useEffect(() => {
+    // Check if user is logged in on app start
     const savedUser = getLocalStorage('user')
     if (savedUser) {
       setUser(savedUser)
     }
+    setIsLoading(false) // Set loading to false after check
   }, [])
 
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-    setIsLoading(true)
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Get users from localStorage
+      const users: UserWithPassword[] = getLocalStorage('users') || []
       
-      // Get registered users from localStorage
-      const users = getLocalStorage('users') || []
-      const user = users.find((u: UserWithPassword) => u.email === email && u.password === password)
+      // Find user by email and password
+      const foundUser = users.find(u => u.email === email && u.password === password)
       
-      if (!user) {
+      if (!foundUser) {
         return { success: false, error: 'Invalid email or password' }
       }
 
       // Remove password from user object before storing
-      const { password: _, ...userWithoutPassword } = user
+      const { password: _, ...userWithoutPassword } = foundUser
       setUser(userWithoutPassword)
       setLocalStorage('user', userWithoutPassword)
       
       return { success: true }
     } catch (error) {
-      console.error('Login error:', error)
-      return { success: false, error: 'Login failed. Please try again.' }
-    } finally {
-      setIsLoading(false)
+      return { success: false, error: 'Login failed' }
     }
   }
 
-  const register = async (email: string, password: string, name: string, role: 'client' | 'freelancer'): Promise<{ success: boolean; error?: string }> => {
-    setIsLoading(true)
+  const register = async (name: string, email: string, password: string, role: 'client' | 'freelancer'): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
       // Get existing users
-      const users = getLocalStorage('users') || []
+      const users: UserWithPassword[] = getLocalStorage('users') || []
       
-      // Check if email already exists
-      if (users.find((u: UserWithPassword) => u.email === email)) {
-        return { success: false, error: 'Email already registered' }
+      // Check if user already exists
+      if (users.find(u => u.email === email)) {
+        return { success: false, error: 'User with this email already exists' }
       }
 
       // Create new user
       const newUser: UserWithPassword = {
         id: Date.now().toString(),
-        email,
-        password, // In real app, this would be hashed
         name,
+        email,
+        password,
         role
       }
 
-      // Save to localStorage
+      // Add to users array
       users.push(newUser)
       setLocalStorage('users', users)
 
-      // Remove password from user object before storing
+      // Remove password and set as current user
       const { password: _, ...userWithoutPassword } = newUser
       setUser(userWithoutPassword)
       setLocalStorage('user', userWithoutPassword)
       
       return { success: true }
     } catch (error) {
-      console.error('Registration error:', error)
-      return { success: false, error: 'Registration failed. Please try again.' }
-    } finally {
-      setIsLoading(false)
+      return { success: false, error: 'Registration failed' }
     }
   }
 
   const logout = () => {
     setUser(null)
-    removeLocalStorage('user')
+    setLocalStorage('user', null)
   }
-
 
   const updateUser = (updatedUser: Partial<User>) => {
     if (user) {
@@ -129,7 +116,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(newUser)
       setLocalStorage('user', newUser)
       
-
+      // Also update user in users array
       const users: UserWithPassword[] = getLocalStorage('users') || []
       const userIndex = users.findIndex(u => u.id === user.id)
       if (userIndex !== -1) {
@@ -141,10 +128,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value = {
     user,
+    isLoading,
     login,
     register,
     logout,
-    isLoading,
     updateUser
   }
 

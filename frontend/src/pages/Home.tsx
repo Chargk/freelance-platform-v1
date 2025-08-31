@@ -1,247 +1,187 @@
-import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, Users, Star, CheckCircle, TrendingUp, Shield, Zap, Globe, Award, Clock, DollarSign } from 'lucide-react'
+import { 
+  Users, 
+  Briefcase, 
+  Star, 
+  Globe, 
+  Shield, 
+  Zap,
+  ArrowRight,
+  CheckCircle
+} from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 const Home = () => {
-  const features = [
-    {
-      icon: Shield,
-      title: "Verified Professionals",
-      description: "Every freelancer is pre-vetted with verified skills and proven track records"
-    },
-    {
-      icon: Zap,
-      title: "Lightning Fast",
-      description: "Get matched with the perfect freelancer in minutes, not days"
-    },
-    {
-      icon: Globe,
-      title: "Global Network",
-      description: "Access to 50,000+ skilled professionals from 150+ countries"
-    }
-  ]
+  const { user } = useAuth()
+  const navigate = useNavigate()
 
-  const stats = [
-    { number: "50K+", label: "Active Freelancers", icon: Users },
-    { number: "25K+", label: "Completed Projects", icon: CheckCircle },
-    { number: "99%", label: "Client Satisfaction", icon: Star },
-    { number: "$5M+", label: "Paid to Freelancers", icon: TrendingUp }
-  ]
-
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "CEO, TechStart",
-      content: "FreelanceHub helped us find the perfect developer for our app. The quality and speed were incredible!",
-      rating: 5
-    },
-    {
-      name: "Mike Chen",
-      role: "Design Director",
-      content: "The platform is intuitive and the freelancers are top-notch. Highly recommended!",
-      rating: 5
+  const handleStartProject = () => {
+    if (user) {
+      // If user is logged in, go to projects page
+      navigate('/projects')
+    } else {
+      // If not logged in, go to register
+      navigate('/register')
     }
-  ]
+  }
+
+  const handleFindWork = () => {
+    if (user) {
+      // If user is logged in, go to projects page
+      navigate('/projects')
+    } else {
+      // If not logged in, go to register
+      navigate('/register')
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
+    <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-white">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 via-purple-600/5 to-indigo-600/5"></div>
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-20 right-10 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl"></div>
-        </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-          <motion.div 
-            className="text-center"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            {/* Trust Badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.2, duration: 0.8 }}
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/50 rounded-full text-sm font-medium mb-8 shadow-sm"
-            >
-              <Star className="w-4 h-4 mr-2 text-yellow-500 fill-current" />
-              Trusted by 10,000+ businesses worldwide
-            </motion.div>
-            
-            {/* Main Heading */}
+      <section className="relative py-20 bg-gradient-to-br from-blue-50 via-white to-purple-50 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
             <motion.h1 
-              className="text-5xl md:text-7xl font-bold mb-8 text-gray-900"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.8 }}
+              transition={{ duration: 0.8 }}
+              className="text-4xl md:text-6xl font-bold text-gray-900 mb-6"
             >
               Find the Perfect
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Freelance</span>
               <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600">
-                Freelancer
-              </span>
+              Opportunities
             </motion.h1>
-            
-            {/* Subtitle */}
             <motion.p 
-              className="text-xl md:text-2xl mb-12 text-gray-600 max-w-3xl mx-auto leading-relaxed"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto"
             >
-              Connect with world-class talent and bring your projects to life. 
-              Fast, secure, and reliable freelance platform.
+              Connect with talented freelancers and clients worldwide. 
+              Build your dream team or find your next project on our trusted platform.
             </motion.p>
-            
-            {/* CTA Buttons */}
             <motion.div 
-              className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7, duration: 0.8 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  to="/register"
-                  className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 text-lg"
-                >
-                  Start Your Project
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Link>
-              </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Link
-                  to="/projects"
-                  className="inline-flex items-center px-8 py-4 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-2xl hover:border-blue-300 hover:text-blue-600 transition-all duration-300 text-lg"
-                >
-                  Browse Projects
-                </Link>
-              </motion.div>
+              <button 
+                onClick={handleStartProject}
+                className="btn-primary px-8 py-4 text-lg font-semibold flex items-center justify-center gap-2"
+              >
+                {user ? 'Browse Projects' : 'Start Your Project'}
+                <ArrowRight className="w-5 h-5" />
+              </button>
+              <button 
+                onClick={handleFindWork}
+                className="btn-secondary px-8 py-4 text-lg font-semibold flex items-center justify-center gap-2"
+              >
+                Find Work
+                <ArrowRight className="w-5 h-5" />
+              </button>
             </motion.div>
-
-            {/* Quick Stats */}
-            <motion.div 
-              className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9, duration: 0.8 }}
-            >
-              {stats.map((stat, index) => {
-                const Icon = stat.icon
-                return (
-                  <div key={stat.label} className="text-center">
-                    <div className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">{stat.number}</div>
-                    <div className="text-sm text-gray-600">{stat.label}</div>
-                  </div>
-                )
-              })}
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Why Choose <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">FreelanceHub</span>?
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Built for modern teams who need quality, speed, and reliability
-            </p>
-          </motion.div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => {
-              const Icon = feature.icon
-              return (
-                <motion.div 
-                  key={feature.title}
-                  className="group"
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.2, duration: 0.8 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -8 }}
-                >
-                  <div className="bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
-                    <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">{feature.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-                  </div>
-                </motion.div>
-              )
-            })}
           </div>
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="py-24 bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Features Section */}
+      <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div 
-            className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              How It Works
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Why Choose Our Platform?
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Get started in minutes, not days
+              We provide everything you need to succeed in the freelance world
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                step: "01",
-                title: "Post Your Project",
-                description: "Describe what you need and set your budget. Our AI will match you with the best freelancers.",
-                icon: "📝"
+                icon: <Users className="w-8 h-8" />,
+                title: "Global Community",
+                description: "Connect with talented professionals from around the world"
               },
               {
-                step: "02",
-                title: "Get Matched",
-                description: "Receive proposals from qualified freelancers within hours, not days.",
-                icon: "🎯"
+                icon: <Shield className="w-8 h-8" />,
+                title: "Secure Payments",
+                description: "Safe and reliable payment system with escrow protection"
               },
               {
-                step: "03",
-                title: "Start Working",
-                description: "Choose your freelancer and start collaborating. Pay securely through our platform.",
-                icon: "🚀"
+                icon: <Zap className="w-8 h-8" />,
+                title: "Fast & Efficient",
+                description: "Quick project matching and streamlined communication"
+              },
+              {
+                icon: <Star className="w-8 h-8" />,
+                title: "Quality Assurance",
+                description: "Verified profiles and project completion guarantees"
+              },
+              {
+                icon: <Globe className="w-8 h-8" />,
+                title: "24/7 Support",
+                description: "Round-the-clock customer support for all your needs"
+              },
+              {
+                icon: <Briefcase className="w-8 h-8" />,
+                title: "Flexible Work",
+                description: "Work on your own terms and schedule"
               }
-            ].map((item, index) => (
-              <motion.div 
-                key={item.step}
-                className="text-center"
+            ].map((feature, index) => (
+              <motion.div
+                key={index}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.2, duration: 0.8 }}
-                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                className="card text-center p-8 hover:shadow-xl transition-shadow"
               >
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">
-                  {item.icon}
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mx-auto mb-6">
+                  {feature.icon}
                 </div>
-                <div className="text-sm font-semibold text-blue-600 mb-2">{item.step}</div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4">{item.title}</h3>
-                <p className="text-gray-600">{item.description}</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600">
+                  {feature.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { number: "50K+", label: "Active Freelancers" },
+              { number: "10K+", label: "Completed Projects" },
+              { number: "95%", label: "Success Rate" },
+              { number: "24/7", label: "Support Available" }
+            ].map((stat, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+              >
+                <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">
+                  {stat.number}
+                </div>
+                <div className="text-gray-600">
+                  {stat.label}
+                </div>
               </motion.div>
             ))}
           </div>
@@ -249,42 +189,65 @@ const Home = () => {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-24 bg-white">
+      <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div 
-            className="text-center mb-16"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              What Our Clients Say
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              What Our Users Say
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Join thousands of satisfied customers
+            <p className="text-xl text-gray-600">
+              Real stories from our community
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <motion.div 
-                key={testimonial.name}
-                className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-3xl p-8 border border-gray-100"
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Sarah Johnson",
+                role: "Web Developer",
+                content: "This platform helped me find amazing clients and grow my freelance business. The payment system is reliable and the support team is always helpful.",
+                rating: 5
+              },
+              {
+                name: "Michael Chen",
+                role: "Project Manager",
+                content: "As a client, I've found incredibly talented freelancers here. The quality of work and communication has exceeded my expectations.",
+                rating: 5
+              },
+              {
+                name: "Emily Davis",
+                role: "UI/UX Designer",
+                content: "The best freelance platform I've used. Great projects, fair rates, and a supportive community of professionals.",
+                rating: 5
+              }
+            ].map((testimonial, index) => (
+              <motion.div
+                key={index}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.2, duration: 0.8 }}
-                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: index * 0.2 }}
+                className="card p-6"
               >
-                <div className="flex items-center mb-4">
+                <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                    <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
-                <p className="text-gray-700 mb-6 text-lg leading-relaxed">"{testimonial.content}"</p>
+                <p className="text-gray-600 mb-4 italic">
+                  "{testimonial.content}"
+                </p>
                 <div>
-                  <div className="font-semibold text-gray-900">{testimonial.name}</div>
-                  <div className="text-gray-600">{testimonial.role}</div>
+                  <div className="font-semibold text-gray-900">
+                    {testimonial.name}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {testimonial.role}
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -293,32 +256,42 @@ const Home = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
+      <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <motion.h2 
+            initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="text-3xl md:text-4xl font-bold text-white mb-6"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Ready to Start Your Project?
-            </h2>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-              Join thousands of satisfied clients and freelancers who trust FreelanceHub
-            </p>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            Ready to get started?
+          </motion.h2>
+          <motion.p 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-xl text-blue-100 mb-8"
+          >
+            Join thousands of freelancers and clients who trust our platform
+          </motion.p>
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center"
+          >
+            <button 
+              onClick={handleStartProject}
+              className="btn-primary bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
             >
-              <Link
-                to="/register"
-                className="inline-flex items-center px-8 py-4 bg-white text-blue-600 font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 text-lg"
-              >
-                Get Started Free
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Link>
-            </motion.div>
+              {user ? 'Browse Projects' : 'Start Your Project'}
+            </button>
+            <button 
+              onClick={handleFindWork}
+              className="btn-secondary border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 text-lg font-semibold"
+            >
+              Find Work
+            </button>
           </motion.div>
         </div>
       </section>
