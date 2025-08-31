@@ -10,60 +10,41 @@ import {
   Paperclip,
   Smile,
   Check,
-  CheckCheck
+  CheckCheck,
+  File,
+  Download,
+  X
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../contexts/ToastContext'
 import { api } from '../services/api'
 import Loading from '../components/ui/Loading'
 import { io, type Socket } from 'socket.io-client'
-
-interface ChatUser {
-  _id: string
-  name: string
-  avatar: string
-  role: 'client' | 'freelancer'
-  isOnline: boolean
-  lastSeen: string
-}
-
-interface Message {
-  _id: string
-  chatId: string
-  senderId: string
-  receiverId: string
-  content: string
-  timestamp: string
-  isRead: boolean
-  type: 'text' | 'image' | 'file'
-  fileUrl?: string
-}
-
-interface Chat {
-  _id: string
-  participants: [string, string] // [currentUserId, otherUserId]
-  lastMessage: Message
-  unreadCount: number
-  projectId?: string
-  projectTitle?: string
-}
+import EmojiPicker from 'emoji-picker-react'
+import { mockChats, mockChatUsers, mockMessages } from '../data/mockChats'
+import type { ChatUser, Message, ChatRoom } from '../types/chat'
 
 const Chat = () => {
   const { user, getUserId } = useAuth()
   const { showError } = useToast()
-  const [chats, setChats] = useState<Chat[]>([])
+  const [chats, setChats] = useState<ChatRoom[]>([])
   const [users, setUsers] = useState<ChatUser[]>([])
   const [messages, setMessages] = useState<Message[]>([])
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
+  const [selectedChat, setSelectedChat] = useState<ChatRoom | null>(null)
   const [selectedUser, setSelectedUser] = useState<ChatUser | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadChatData()
@@ -80,6 +61,18 @@ const Chat = () => {
     scrollToBottom()
   }, [messages])
 
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const initializeSocket = () => {
     // Connect to WebSocket server
     socketRef.current = io('http://localhost:5001', {
@@ -95,19 +88,31 @@ const Chat = () => {
 
     // Receive new messages
     socketRef.current.on('newMessage', (message: Message) => {
-      setMessages(prev => [...prev, message])
+      const updatedMessages = [...messages, message]
+      setMessages(updatedMessages)
+      
+      // Save messages to localStorage
+      localStorage.setItem(`chat_messages_${message.chatId}`, JSON.stringify(updatedMessages))
       
       // Update last message in chat
-      setChats(prev => prev.map(chat => {
-        if (chat._id === message.chatId) {
-          return {
-            ...chat,
-            lastMessage: message,
-            unreadCount: chat.unreadCount + 1
+      setChats(prev => {
+        const updatedChats = prev.map(chat => {
+          if (chat._id === message.chatId) {
+            // Only increment unread count if this chat is not currently selected
+            const unreadIncrement = selectedChat?._id === message.chatId ? 0 : 1
+            return {
+              ...chat,
+              lastMessage: message,
+              unreadCount: chat.unreadCount + unreadIncrement
+            }
           }
-        }
-        return chat
-      }))
+          return chat
+        })
+        
+        // Save updated chats to localStorage
+        localStorage.setItem('chat_list', JSON.stringify(updatedChats))
+        return updatedChats
+      })
     })
 
     // User typing
@@ -153,16 +158,33 @@ const Chat = () => {
     try {
       setIsLoading(true)
       
-      // Load chats
-      const chatsResponse = await api.getChats() as { chats: Chat[] }
-      setChats(chatsResponse.chats || [])
+      // Try to load chats from localStorage first
+      const savedChats = localStorage.getItem('chat_list')
+      let chatList: ChatRoom[] = []
       
-      // Load users (in real app this would be a separate API)
-      // Here would be logic to load users
+      if (savedChats) {
+        try {
+          chatList = JSON.parse(savedChats)
+        } catch (error) {
+          console.error('Error parsing saved chats:', error)
+        }
+      }
+      
+      // If no saved chats, use mock data
+      if (chatList.length === 0) {
+        chatList = mockChats
+      }
+      
+      setChats(chatList)
+      setUsers(mockChatUsers)
       
     } catch (error: any) {
       console.error('Error loading chat data:', error)
       showError('Failed to load chats', error.message)
+      
+      // Fallback to mock data
+      setChats(mockChats)
+      setUsers(mockChatUsers)
     } finally {
       setIsLoading(false)
     }
@@ -171,8 +193,25 @@ const Chat = () => {
   const loadMessages = async (chatId: string) => {
     try {
       setIsLoadingMessages(true)
-      const response = await api.getMessages(chatId) as { messages: Message[] }
-      setMessages(response.messages || [])
+      
+      // Try to load from localStorage first
+      const savedMessages = localStorage.getItem(`chat_messages_${chatId}`)
+      let chatMessages: Message[] = []
+      
+      if (savedMessages) {
+        try {
+          chatMessages = JSON.parse(savedMessages)
+        } catch (error) {
+          console.error('Error parsing saved messages:', error)
+        }
+      }
+      
+      // If no saved messages, use mock data
+      if (chatMessages.length === 0) {
+        chatMessages = mockMessages.filter(msg => msg.chatId === chatId)
+      }
+      
+      setMessages(chatMessages)
       
       // Join chat via WebSocket
       if (socketRef.current) {
@@ -180,7 +219,7 @@ const Chat = () => {
       }
       
       // Mark messages as read
-      await api.markAsRead(chatId)
+      // await api.markAsRead(chatId)
       
     } catch (error: any) {
       console.error('Error loading messages:', error)
@@ -195,26 +234,94 @@ const Chat = () => {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat || !user) return
+    if ((!newMessage.trim() && !selectedFile) || !selectedChat || !user) return
 
     try {
+      let messageContent = newMessage.trim()
+      let messageType: 'text' | 'image' | 'file' = 'text'
+      let fileUrl = ''
+
+      // Handle file upload
+      if (selectedFile) {
+        setIsUploading(true)
+        try {
+          // In production, this would upload to server
+          // For now, create a mock file URL
+          fileUrl = URL.createObjectURL(selectedFile)
+          messageType = selectedFile.type.startsWith('image/') ? 'image' : 'file'
+          messageContent = selectedFile.name
+        } catch (error) {
+          showError('File upload failed', 'Could not upload file')
+          return
+        } finally {
+          setIsUploading(false)
+        }
+      }
+
+      const newMessageObj: Message = {
+        _id: Date.now().toString(),
+        chatId: selectedChat._id,
+        senderId: getUserId(),
+        receiverId: selectedChat.participants.find(id => id !== getUserId()) || '',
+        content: messageContent,
+        timestamp: new Date().toISOString(),
+        isRead: false,
+        type: messageType,
+        fileUrl: fileUrl || undefined,
+        fileName: selectedFile?.name,
+        fileSize: selectedFile?.size,
+        fileType: selectedFile?.type
+      }
+
+      // Add message locally for immediate feedback
+      const updatedMessages = [...messages, newMessageObj]
+      setMessages(updatedMessages)
+      
+      // Save messages to localStorage
+      localStorage.setItem(`chat_messages_${selectedChat._id}`, JSON.stringify(updatedMessages))
+      
+      // Update chat's last message and clear unread count
+      setChats(prev => prev.map(chat => 
+        chat._id === selectedChat._id 
+          ? { ...chat, lastMessage: newMessageObj, unreadCount: 0 }
+          : chat
+      ))
+      
+      // Save updated chats to localStorage
+      const updatedChats = chats.map(chat => 
+        chat._id === selectedChat._id 
+          ? { ...chat, lastMessage: newMessageObj, unreadCount: 0 }
+          : chat
+      )
+      localStorage.setItem('chat_list', JSON.stringify(updatedChats))
+
       // Send via WebSocket for speed
       if (socketRef.current) {
         socketRef.current.emit('sendMessage', {
           chatId: selectedChat._id,
-          content: newMessage.trim(),
-          type: 'text'
+          content: messageContent,
+          type: messageType,
+          fileUrl,
+          fileName: selectedFile?.name,
+          fileSize: selectedFile?.size,
+          fileType: selectedFile?.type
         })
       }
 
       // Also send via API for reliability
-      await api.sendMessage({
-        chatId: selectedChat._id,
-        content: newMessage.trim(),
-        type: 'text'
-      })
+      try {
+        await api.sendMessage({
+          chatId: selectedChat._id,
+          content: messageContent,
+          type: messageType,
+          fileUrl
+        })
+      } catch (error) {
+        console.error('API send failed, but message was sent via WebSocket')
+      }
 
       setNewMessage('')
+      setSelectedFile(null)
       
       // Stop typing indicator
       if (socketRef.current) {
@@ -255,7 +362,7 @@ const Chat = () => {
     }
   }
 
-  const selectChat = async (chat: Chat) => {
+  const selectChat = async (chat: ChatRoom) => {
     setSelectedChat(chat)
     const otherUserId = chat.participants.find(id => id !== getUserId())
     const otherUser = users.find(u => u._id === otherUserId)
@@ -264,10 +371,14 @@ const Chat = () => {
     // Load messages
     await loadMessages(chat._id)
 
-    // Clear unread messages
-    setChats(prev => prev.map(c => 
-      c._id === chat._id ? { ...c, unreadCount: 0 } : c
-    ))
+    // Clear unread messages and save to localStorage
+    setChats(prev => {
+      const updatedChats = prev.map(c => 
+        c._id === chat._id ? { ...c, unreadCount: 0 } : c
+      )
+      localStorage.setItem('chat_list', JSON.stringify(updatedChats))
+      return updatedChats
+    })
   }
 
   const formatTime = (timestamp: string) => {
@@ -284,6 +395,38 @@ const Chat = () => {
     }
   }
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Check file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showError('File too large', 'Maximum file size is 10MB')
+        return
+      }
+      setSelectedFile(file)
+    }
+  }
+
+  const handleEmojiClick = (emojiObject: any) => {
+    setNewMessage(prev => prev + emojiObject.emoji)
+    setShowEmojiPicker(false)
+  }
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const filteredChats = chats.filter(chat => {
     const otherUserId = chat.participants.find(id => id !== getUserId())
     const otherUser = users.find(u => u._id === otherUserId)
@@ -291,7 +434,7 @@ const Chat = () => {
            chat.projectTitle?.toLowerCase().includes(searchQuery.toLowerCase())
   })
 
-  const getOtherUser = (chat: Chat) => {
+  const getOtherUser = (chat: ChatRoom) => {
     const otherUserId = chat.participants.find(id => id !== getUserId())
     return users.find(u => u._id === otherUserId)
   }
@@ -384,7 +527,19 @@ const Chat = () => {
                         )}
                         
                         <p className="text-sm text-gray-600 truncate">
-                          {chat.lastMessage.content}
+                          {chat.lastMessage.type === 'file' ? (
+                            <span className="flex items-center gap-1">
+                              <File className="w-3 h-3" />
+                              {chat.lastMessage.fileName || 'File'}
+                            </span>
+                          ) : chat.lastMessage.type === 'image' ? (
+                            <span className="flex items-center gap-1">
+                              <Image className="w-3 h-3" />
+                              Image
+                            </span>
+                          ) : (
+                            chat.lastMessage.content
+                          )}
                         </p>
                         
                         <div className="flex justify-between items-center mt-2">
@@ -488,7 +643,39 @@ const Chat = () => {
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-100 text-gray-900'
                         }`}>
-                          <p className="text-sm">{message.content}</p>
+                          {message.type === 'file' && (
+                            <div className="mb-2">
+                              <div className="flex items-center gap-2 p-2 bg-white/10 rounded">
+                                <File className="w-4 h-4" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{message.fileName}</p>
+                                  <p className="text-xs opacity-75">{message.fileSize && formatFileSize(message.fileSize)}</p>
+                                </div>
+                                <button 
+                                  onClick={() => message.fileUrl && window.open(message.fileUrl, '_blank')}
+                                  className="p-1 hover:bg-white/20 rounded"
+                                >
+                                  <Download className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {message.type === 'image' && message.fileUrl && (
+                            <div className="mb-2">
+                              <img 
+                                src={message.fileUrl} 
+                                alt="Shared image"
+                                className="max-w-full rounded cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(message.fileUrl, '_blank')}
+                              />
+                            </div>
+                          )}
+                          
+                          {message.content && (
+                            <p className="text-sm">{message.content}</p>
+                          )}
+                          
                           <div className={`flex items-center justify-end gap-1 mt-1 text-xs ${
                             message.senderId === getUserId() ? 'text-blue-100' : 'text-gray-500'
                           }`}>
@@ -530,6 +717,25 @@ const Chat = () => {
                 )}
               </div>
 
+              {/* Selected File Preview */}
+              {selectedFile && (
+                <div className="px-4 py-2 border-t border-gray-200 bg-gray-50">
+                  <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                    <File className="w-4 h-4 text-blue-600" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
+                    </div>
+                    <button
+                      onClick={removeSelectedFile}
+                      className="p-1 hover:bg-gray-100 rounded"
+                    >
+                      <X className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Message Input */}
               <div className="p-4 border-t border-gray-200">
                 <div className="flex items-end gap-3">
@@ -544,21 +750,51 @@ const Chat = () => {
                     />
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar"
+                    />
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                    >
                       <Paperclip className="w-5 h-5" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                    >
                       <Image className="w-5 h-5" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100">
-                      <Smile className="w-5 h-5" />
-                    </button>
+                    <div className="relative">
+                      <button 
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                      >
+                        <Smile className="w-5 h-5" />
+                      </button>
+                      {showEmojiPicker && (
+                        <div 
+                          ref={emojiPickerRef}
+                          className="absolute bottom-full right-0 mb-2 z-50"
+                        >
+                          <EmojiPicker onEmojiClick={handleEmojiClick} />
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={handleSendMessage}
-                      disabled={!newMessage.trim()}
+                      disabled={(!newMessage.trim() && !selectedFile) || isUploading}
                       className="btn-primary p-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Send className="w-5 h-5" />
+                      {isUploading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Send className="w-5 h-5" />
+                      )}
                     </button>
                   </div>
                 </div>
