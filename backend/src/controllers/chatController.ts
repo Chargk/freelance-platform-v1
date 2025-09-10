@@ -1,10 +1,9 @@
 import { Response } from 'express'
-import { AuthRequest } from '../middleware/auth'
 import Chat from '../models/Chat'
 import Message from '../models/Message'
 import User from '../models/User'
 
-export const getChats = async (req: AuthRequest, res: Response) => {
+export const getChats = async (req: any, res: Response) => {
   try {
     const chats = await Chat.find({
       participants: req.user._id
@@ -21,7 +20,7 @@ export const getChats = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const getChat = async (req: AuthRequest, res: Response) => {
+export const getChat = async (req: any, res: Response) => {
   try {
     const chat = await Chat.findById(req.params.id)
       .populate('participants', 'name email role avatar')
@@ -42,7 +41,7 @@ export const getChat = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const getMessages = async (req: AuthRequest, res: Response) => {
+export const getMessages = async (req: any, res: Response) => {
   try {
     const { chatId } = req.params
     const { page = 1, limit = 50 } = req.query
@@ -93,7 +92,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const sendMessage = async (req: AuthRequest, res: Response) => {
+export const sendMessage = async (req: any, res: Response) => {
   try {
     const { chatId, content, type = 'text', fileUrl } = req.body
 
@@ -138,7 +137,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const markAsRead = async (req: AuthRequest, res: Response) => {
+export const markAsRead = async (req: any, res: Response) => {
   try {
     const { chatId } = req.params
 
@@ -172,7 +171,7 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const createChat = async (req: AuthRequest, res: Response) => {
+export const createChat = async (req: any, res: Response) => {
   try {
     const { participantId, projectId } = req.body
 

@@ -1,9 +1,8 @@
-import { Response } from 'express'
-import { AuthRequest } from '../middleware/auth'
+import { Response, Request } from 'express'
 import Project from '../models/Project'
 import User from '../models/User'
 
-export const createProject = async (req: AuthRequest, res: Response) => {
+export const createProject = async (req: any, res: Response) => {
   try {
     const projectData = {
       ...req.body,
@@ -119,7 +118,7 @@ export const getProject = async (req: Request, res: Response) => {
   }
 }
 
-export const updateProject = async (req: AuthRequest, res: Response) => {
+export const updateProject = async (req: any, res: Response) => {
   try {
     const project = await Project.findById(req.params.id)
 
@@ -147,7 +146,7 @@ export const updateProject = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const deleteProject = async (req: AuthRequest, res: Response) => {
+export const deleteProject = async (req: any, res: Response) => {
   try {
     const project = await Project.findById(req.params.id)
 
@@ -168,7 +167,7 @@ export const deleteProject = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const getUserProjects = async (req: AuthRequest, res: Response) => {
+export const getUserProjects = async (req: any, res: Response) => {
   try {
     const projects = await Project.find({ postedBy: req.user._id })
       .populate('postedBy', 'name email role rating')

@@ -1,10 +1,9 @@
 import { Response } from 'express'
-import { AuthRequest } from '../middleware/auth'
 import Invite from '../models/Invite'
 import Project from '../models/Project'
 import User from '../models/User'
 
-export const createInvite = async (req: AuthRequest, res: Response) => {
+export const createInvite = async (req: any, res: Response) => {
   try {
     const { projectId, freelancerId, message } = req.body
 
@@ -77,7 +76,7 @@ export const createInvite = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const getInvites = async (req: AuthRequest, res: Response) => {
+export const getInvites = async (req: any, res: Response) => {
   try {
     const { status, page = 1, limit = 10 } = req.query
 
@@ -113,7 +112,7 @@ export const getInvites = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const getInvite = async (req: AuthRequest, res: Response) => {
+export const getInvite = async (req: any, res: Response) => {
   try {
     const invite = await Invite.findById(req.params.id)
       .populate('projectId', 'title description')
@@ -136,7 +135,7 @@ export const getInvite = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const respondToInvite = async (req: AuthRequest, res: Response) => {
+export const respondToInvite = async (req: any, res: Response) => {
   try {
     const { response } = req.body // 'accept' or 'decline'
 
@@ -182,7 +181,7 @@ export const respondToInvite = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const getSentInvites = async (req: AuthRequest, res: Response) => {
+export const getSentInvites = async (req: any, res: Response) => {
   try {
     const { status, page = 1, limit = 10 } = req.query
 
@@ -218,7 +217,7 @@ export const getSentInvites = async (req: AuthRequest, res: Response) => {
   }
 }
 
-export const deleteInvite = async (req: AuthRequest, res: Response) => {
+export const deleteInvite = async (req: any, res: Response) => {
   try {
     const invite = await Invite.findById(req.params.id)
 

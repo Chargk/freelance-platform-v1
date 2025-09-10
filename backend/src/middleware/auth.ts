@@ -6,7 +6,7 @@ export interface AuthRequest extends Request {
   user?: any
 }
 
-export const auth = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const auth = async (req: any, res: Response, next: NextFunction) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '')
     
@@ -28,7 +28,7 @@ export const auth = async (req: AuthRequest, res: Response, next: NextFunction) 
   }
 }
 
-export const optionalAuth = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const optionalAuth = async (req: any, res: Response, next: NextFunction) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '')
     
