@@ -75,7 +75,7 @@ const Chat = () => {
 
   const initializeSocket = () => {
     // Connect to WebSocket server
-    socketRef.current = io('http://localhost:5001', {
+      socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5001', {
       auth: {
         token: localStorage.getItem('token')
       }
