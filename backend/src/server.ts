@@ -2,15 +2,18 @@ import express, { Request, Response } from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import { createServer } from 'http'
 import authRoutes from './routes/auth'
 import projectRoutes from './routes/projects'
 import chatRoutes from './routes/chat'
 import inviteRoutes from './routes/invites'
+import SocketService from './services/socketService'
 
 // Load environment variables
 dotenv.config()
 
 const app = express()
+const server = createServer(app)
 const PORT = process.env.PORT || 5001
 
 // Middleware
@@ -26,6 +29,9 @@ mongoose.connect(process.env.MONGODB_URI!)
   .catch((error) => {
     console.error('❌ MongoDB connection error:', error)
   })
+
+// Initialize Socket.io service
+const socketService = new SocketService(server)
 
 // Routes
 app.use('/api/auth', authRoutes)
@@ -52,10 +58,11 @@ app.get('/api/health', (req: Request, res: Response) => {
 })
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`)
   console.log(`📊 Environment: ${process.env.NODE_ENV}`)
   console.log(`🔗 API URL: http://localhost:${PORT}`)
+  console.log(`🔌 WebSocket server is ready for connections`)
 })
 
 export default app
