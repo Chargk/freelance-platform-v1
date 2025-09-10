@@ -1,11 +1,8 @@
-import { Request, Response } from 'express'
+import { Response } from 'express'
+import { AuthRequest } from '../middleware/auth'
 import Invite from '../models/Invite'
 import Project from '../models/Project'
 import User from '../models/User'
-
-interface AuthRequest extends Request {
-  user?: any
-}
 
 export const createInvite = async (req: AuthRequest, res: Response) => {
   try {

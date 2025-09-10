@@ -1,11 +1,8 @@
-import { Request, Response } from 'express'
+import { Response } from 'express'
+import { AuthRequest } from '../middleware/auth'
 import Chat from '../models/Chat'
 import Message from '../models/Message'
 import User from '../models/User'
-
-interface AuthRequest extends Request {
-  user?: any
-}
 
 export const getChats = async (req: AuthRequest, res: Response) => {
   try {
