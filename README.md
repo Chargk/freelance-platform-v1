@@ -1,1 +1,1 @@
-freelancehub-app.netlify.app
+https://freelancehub-app.netlify.app/
