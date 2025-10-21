@@ -281,13 +281,13 @@ const Home = () => {
           >
             <button 
               onClick={handleStartProject}
-              className="btn-primary bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg font-semibold"
+              className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-3 text-lg font-semibold rounded-xl border-2 border-white shadow-lg hover:shadow-xl transition-all duration-300"
             >
               {user ? 'Browse Projects' : 'Start Your Project'}
             </button>
             <button 
               onClick={handleFindWork}
-              className="btn-secondary border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 text-lg font-semibold"
+              className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-3 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
             >
               Find Work
             </button>

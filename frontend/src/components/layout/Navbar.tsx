@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { 
@@ -9,12 +9,15 @@ import {
   LogOut
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { api } from '../../services/api'
+import type { ChatRoom } from '../../types/chat'
 
 const Navbar = () => {
   const { user, logout } = useAuth()
   const location = useLocation()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   const handleLogout = () => {
     logout()
@@ -22,6 +25,26 @@ const Navbar = () => {
   }
 
   const isActive = (path: string) => location.pathname === path
+
+  // Fetch unread messages count
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (user) {
+        try {
+          const chats = await api.getChats() as ChatRoom[]
+          const totalUnread = chats.reduce((sum: number, chat: ChatRoom) => sum + (chat.unreadCount || 0), 0)
+          setUnreadCount(totalUnread)
+        } catch (error) {
+          console.error('Error fetching unread count:', error)
+          setUnreadCount(0)
+        }
+      } else {
+        setUnreadCount(0)
+      }
+    }
+
+    fetchUnreadCount()
+  }, [user])
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
@@ -96,15 +119,19 @@ const Navbar = () => {
 
           {/* Right side - Notifications and User Menu */}
           <div className="flex items-center space-x-4">
-            {/* Notifications */}
-            <div className="relative">
-              <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-                  21
-                </span>
-              </button>
-            </div>
+            {/* Notifications - Only show when user is logged in */}
+            {user && (
+              <div className="relative">
+                <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            )}
 
             {/* User Menu */}
             {user ? (
